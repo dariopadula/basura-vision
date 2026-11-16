@@ -1,6 +1,6 @@
 # Visores en Cloudera AI Workbench
 
-Guía corta para abrir las dos interfaces de `basura-vision` dentro de una sesión activa de Cloudera. Los procesos duran mientras la sesión permanezca activa. El repositorio incluye además un lanzador del visor de resultados como Cloudera Application; su validación queda registrada por separado cuando se ejecute.
+Guía corta para abrir las dos interfaces de `basura-vision` dentro de una sesión activa de Cloudera. Los procesos duran mientras la sesión permanezca activa. El lanzador del visor de resultados como Cloudera Application fue comprobado con la corrida restaurada de 30 fotos.
 
 ## Antes de iniciar
 
@@ -135,4 +135,6 @@ Al crear la Application seleccionar:
 La Application lee estas opciones junto con la conexión, bucket, prefijo y objeto del modelo desde el `.env` privado del proyecto. No hace falta que la pantalla de creación permita agregar variables. El modelo no se usa para mostrar una corrida, pero la configuración común valida el almacenamiento S3.
 
 El primer inicio descarga los artefactos guardados; los siguientes reutilizan la copia local si está completa. El visor no ejecuta YOLO.
+
+Validación realizada el 2026-11-16: la Application restauró `runs/reference_30_cloudera` desde S3 como `reference_30_application`, inició correctamente y mostró las 30 fotos con originales, recortes, filtros y exportación.
 

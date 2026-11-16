@@ -8,7 +8,26 @@ Las rutas del manifiesto son keys relativas a `BV_S3_PREFIX`. El detector materi
 
 La prueba real en CML se completó con Python 3.10.20, torch 2.14.1 CPU, torchvision 0.29.1 CPU, scikit-learn 1.7.2 y ultralytics 8.4.208. Las 30 fotos y el modelo se leyeron desde S3; los 30 estados, recortes y ratios coincidieron con Windows. Se guardaron 26 artefactos de corrida en S3, se restauraron en otro directorio y se abrió el visor restaurado sin ejecutar YOLO. La diferencia de scikit-learn respecto de Windows no intervino todavía porque esta prueba no ejecutó PCA/K-means.
 
-Para abrir las interfaces en una sesión consultar [visores en Cloudera](visores_cloudera.md). La prueba como Application y la corrida de 3.000 siguen pendientes.
+Para abrir las interfaces en una sesión consultar [visores en Cloudera](visores_cloudera.md). El visor se desplegó y abrió correctamente como Application con la corrida restaurada de 30. La corrida de 3.000 sigue pendiente.
+
+## Prueba técnica de agrupación con las 30 fotos
+
+Antes de cargar las 3.000 se puede comprobar el encadenamiento completo sobre una copia de la corrida de referencia. Hay 22 recortes, pero solo 15 tienen contenedor y ratio; por eso esta prueba usa PCA-10 y K-means con 3 grupos. No permite evaluar ni comparar los grupos definitivos.
+
+```bash
+python3 -m basura_vision.cli download-run \
+  --run-id reference_30_smoke \
+  --source runs/reference_30_cloudera
+
+python3 -m basura_vision.cli embed --run-id reference_30_smoke
+
+python3 -m basura_vision.cli cluster \
+  --run-id reference_30_smoke \
+  --clusters 3 \
+  --pca-components 10
+```
+
+La primera extracción puede descargar los pesos ImageNet de ResNet18. El resultado esperado es `embeddings.npy` con 22 vectores, `embedding_index.jsonl`, `assignments.jsonl` y `clustering.json`. Después puede abrirse `reference_30_smoke` en el visor. La validación comparable sigue siendo PCA-30 y K-means-15 sobre las 3.000.
 
 ## Git
 

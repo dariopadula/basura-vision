@@ -33,11 +33,18 @@ python -m basura_vision.cli annotator --manifest manifests/reference_30.jsonl
 
 El detector guarda `run.json`, el manifiesto exacto, `detections.jsonl` con cajas/confianzas/estado/motivo/ratio y los recortes. El visor abre la corrida sin recalcular YOLO, muestra original y recorte, filtra por grupo o exclusión y exporta IDs/rutas. El anotador guarda cajas normalizadas sobre la imagen con orientación EXIF corregida, permite confirmar negativos y retoma `data/annotations/annotations.json`.
 
-La muestra conserva los grupos calculados sobre 3.000. No se ajusta K-means sobre 30. Para un lote suficiente:
+La muestra conserva los grupos calculados sobre 3.000. No se usa un ajuste hecho sobre 30 como resultado comparable. Sí puede hacerse una prueba técnica del flujo con los 22 recortes disponibles: PCA de 10 componentes y K-means de 3 grupos sobre los 15 casos agrupables.
+
+```powershell
+python -m basura_vision.cli embed --run-id reference_30_smoke
+python -m basura_vision.cli cluster --run-id reference_30_smoke --clusters 3 --pca-components 10
+```
+
+Esta prueba solo confirma que embeddings, PCA, K-means y el visor funcionan de punta a punta. Los grupos definitivos se calculan sobre el lote de 3.000:
 
 ```powershell
 python -m basura_vision.cli embed --run-id lote_3000
-python -m basura_vision.cli cluster --run-id lote_3000 --clusters 15
+python -m basura_vision.cli cluster --run-id lote_3000 --clusters 15 --pca-components 30
 ```
 
 ## Reentrenamiento

@@ -7,12 +7,19 @@ from .config import ROOT, load_settings
 from .storage import download_run, photo_storage, upload_run
 
 
+def positive_integer(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("debe ser un entero mayor que cero")
+    return parsed
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="basura-vision"); parser.add_argument("--env-file", type=Path)
     commands = parser.add_subparsers(dest="command", required=True)
     detect = commands.add_parser("detect"); detect.add_argument("--manifest", type=Path, required=True); detect.add_argument("--run-id", required=True)
     embed = commands.add_parser("embed"); embed.add_argument("--run-id", required=True)
-    group = commands.add_parser("cluster"); group.add_argument("--run-id", required=True); group.add_argument("--clusters", type=int, default=15)
+    group = commands.add_parser("cluster"); group.add_argument("--run-id", required=True); group.add_argument("--clusters", type=positive_integer, default=15); group.add_argument("--pca-components", type=positive_integer, default=30)
     viewer = commands.add_parser("viewer"); viewer.add_argument("--run-id", required=True); viewer.add_argument("--no-browser", action="store_true")
     annotator = commands.add_parser("annotator"); annotator.add_argument("--manifest", type=Path, required=True); annotator.add_argument("--no-browser", action="store_true")
     sync = commands.add_parser("upload-run"); sync.add_argument("--run-id", required=True); sync.add_argument("--destination")
@@ -28,7 +35,7 @@ def main(argv=None):
         extract_embeddings(settings.runs_root / args.run_id)
     elif args.command == "cluster":
         from .clustering import cluster_run
-        cluster_run(settings.runs_root / args.run_id, args.clusters)
+        cluster_run(settings.runs_root / args.run_id, clusters=args.clusters, pca_components=args.pca_components)
     elif args.command == "viewer":
         from .viewer import serve_viewer
         serve_viewer(settings, storage, args.run_id, not args.no_browser)

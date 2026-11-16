@@ -3,9 +3,11 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from basura_vision.annotator import load_annotations, save_annotations, validate_boxes
+from basura_vision.cli import main
 from basura_vision.config import ConfigError, load_settings
 from basura_vision.storage import S3Storage, LocalStorage, download_run, upload_run
 from basura_vision.training import yolo_label
@@ -80,6 +82,25 @@ class CoreTests(unittest.TestCase):
             settings = load_settings(env_file)
         self.assertEqual(settings.viewer_run_id, "my_application_run")
         self.assertEqual(settings.viewer_run_source, "runs/source_run")
+
+    def test_cluster_cli_accepts_smaller_pca_for_smoke_test(self):
+        settings = SimpleNamespace(runs_root=Path("runs"))
+        with (
+            patch("basura_vision.cli.load_settings", return_value=settings),
+            patch("basura_vision.cli.photo_storage", return_value=object()),
+            patch("basura_vision.clustering.cluster_run") as cluster_run,
+        ):
+            main([
+                "cluster",
+                "--run-id", "reference_30_smoke",
+                "--clusters", "3",
+                "--pca-components", "10",
+            ])
+        cluster_run.assert_called_once_with(
+            Path("runs/reference_30_smoke"),
+            clusters=3,
+            pca_components=10,
+        )
 
 
 if __name__ == "__main__":
