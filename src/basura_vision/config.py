@@ -55,6 +55,8 @@ class Settings:
     host: str
     viewer_port: int
     annotator_port: int
+    viewer_run_id: str
+    viewer_run_source: str
     s3_connection: str | None = None
     s3_bucket: str | None = None
     s3_prefix: str = ""
@@ -88,6 +90,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
         host=values.get("BV_HOST", "0.0.0.0" if app_env == "cloudera" else "127.0.0.1"),
         viewer_port=_integer(values, "BV_VIEWER_PORT", shared_port or 8765),
         annotator_port=_integer(values, "BV_ANNOTATOR_PORT", shared_port or 8768),
+        viewer_run_id=values.get("BV_RUN_ID", "reference_30_application"),
+        viewer_run_source=values.get("BV_RUN_SOURCE", "runs/reference_30_cloudera"),
         s3_connection=values.get("BV_S3_CONNECTION"),
         s3_bucket=values.get("BV_S3_BUCKET"),
         s3_prefix=values.get("BV_S3_PREFIX", "").strip("/"),

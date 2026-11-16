@@ -70,6 +70,17 @@ class CoreTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "no asignó"):
             assigned_port({})
 
+    def test_viewer_run_can_be_configured_from_env_file(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True):
+            env_file = Path(directory) / ".env"
+            env_file.write_text(
+                "BV_RUN_ID=my_application_run\nBV_RUN_SOURCE=runs/source_run\n",
+                encoding="utf-8",
+            )
+            settings = load_settings(env_file)
+        self.assertEqual(settings.viewer_run_id, "my_application_run")
+        self.assertEqual(settings.viewer_run_source, "runs/source_run")
+
 
 if __name__ == "__main__":
     unittest.main()

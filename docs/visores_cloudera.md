@@ -129,10 +129,10 @@ Al crear la Application seleccionar:
 
 - **Script:** `scripts/run_viewer_cloudera.py`.
 - **Runtime:** el mismo Python 3.10 comprobado en la sesión.
-- **Variable `BV_RUN_ID`:** `reference_30_application`.
-- **Variable `BV_RUN_SOURCE`:** `runs/reference_30_cloudera`.
+- **Corrida local:** `BV_RUN_ID=reference_30_application` en `.env`.
+- **Corrida guardada:** `BV_RUN_SOURCE=runs/reference_30_cloudera` en `.env`.
 
-La Application también necesita acceso a las variables de `.env` o a sus equivalentes configuradas en el proyecto: conexión, bucket, prefijo y objeto del modelo. El modelo no se usa para mostrar una corrida, pero la configuración común valida el almacenamiento S3.
+La Application lee estas opciones junto con la conexión, bucket, prefijo y objeto del modelo desde el `.env` privado del proyecto. No hace falta que la pantalla de creación permita agregar variables. El modelo no se usa para mostrar una corrida, pero la configuración común valida el almacenamiento S3.
 
 El primer inicio descarga los artefactos guardados; los siguientes reutilizan la copia local si está completa. El visor no ejecuta YOLO.
 

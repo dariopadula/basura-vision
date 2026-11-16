@@ -1,6 +1,6 @@
 """Lanzador del visor como Cloudera Application.
 
-Variables opcionales:
+Variables opcionales, leídas también desde `.env`:
     BV_RUN_ID: nombre local de la corrida restaurada.
     BV_RUN_SOURCE: prefijo relativo de la corrida guardada en S3.
 """
@@ -27,10 +27,10 @@ def main() -> None:
 
     settings = load_settings()
     storage = photo_storage(settings)
-    run_id = os.environ.get("BV_RUN_ID", "reference_30_application")
+    run_id = settings.viewer_run_id
     if Path(run_id).name != run_id:
         raise ValueError("BV_RUN_ID debe ser un nombre simple, sin carpetas")
-    source = os.environ.get("BV_RUN_SOURCE", "runs/reference_30_cloudera")
+    source = settings.viewer_run_source
     run_dir = settings.runs_root / run_id
     required = [run_dir / "run.json", run_dir / "manifest.jsonl", run_dir / "detections.jsonl"]
     if not all(path.is_file() for path in required):
