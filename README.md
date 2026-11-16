@@ -20,7 +20,7 @@ Colocar el peso activo en `models/active/best.pt` y los originales bajo `data/ph
 python scripts/import_reference_assets.py D:\Git\proyecto_basura_vision_baseline
 ```
 
-En Linux/Cloudera cambia únicamente la activación (`source .venv/bin/activate`); los comandos siguientes son idénticos. Para S3 instalar `.[s3]`. Sin `.env` y sin `APP_ENV`, el entorno es `local`. Rutas relativas de configuración se resuelven siempre desde esta raíz. Valores inválidos o variables requeridas ausentes producen un error directo.
+En Cloudera AI Workbench no se crea otro `.venv`: el Runtime instala paquetes del proyecto bajo `/home/cdsw/.local`. La guía de despliegue registra las versiones comprobadas y la configuración S3. Sin `.env` y sin `APP_ENV`, el entorno es `local`. Rutas relativas de configuración se resuelven siempre desde esta raíz. Valores inválidos o variables requeridas ausentes producen un error directo.
 
 ## Ejecutar y verificar la muestra fija
 
@@ -59,5 +59,6 @@ python -m unittest discover -s tests -v
 
 - [Referencia congelada](docs/reference.md)
 - [Cloudera, S3, Git y Bedrock](docs/deployment.md)
+- [Abrir visor y anotador en Cloudera](docs/visores_cloudera.md)
 - [Inventario del primer commit](docs/first_commit.md)
 
