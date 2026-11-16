@@ -26,9 +26,10 @@ def main(argv=None):
     download = commands.add_parser("download-run"); download.add_argument("--run-id", required=True); download.add_argument("--source")
     prepare = commands.add_parser("prepare-dataset"); prepare.add_argument("--version", required=True); prepare.add_argument("--output", type=Path, default=ROOT / "training_data")
     training = commands.add_parser("train"); training.add_argument("--dataset", type=Path, required=True); training.add_argument("--initial-weight", type=Path, required=True); training.add_argument("--output", type=Path, required=True); training.add_argument("--epochs", type=int, default=50)
-    args = parser.parse_args(argv); settings = load_settings(args.env_file); storage = photo_storage(settings)
+    args = parser.parse_args(argv); settings = load_settings(args.env_file)
     if args.command == "detect":
         from .detection import run_detection
+        storage = photo_storage(settings)
         run_detection(settings, storage, args.manifest.resolve(), args.run_id)
     elif args.command == "embed":
         from .clustering import extract_embeddings
@@ -38,14 +39,21 @@ def main(argv=None):
         cluster_run(settings.runs_root / args.run_id, clusters=args.clusters, pca_components=args.pca_components)
     elif args.command == "viewer":
         from .viewer import serve_viewer
+        storage = photo_storage(settings)
         serve_viewer(settings, storage, args.run_id, not args.no_browser)
     elif args.command == "annotator":
         from .annotator import serve_annotator
+        storage = photo_storage(settings)
         serve_annotator(settings, storage, args.manifest.resolve(), not args.no_browser)
-    elif args.command == "upload-run": print("\n".join(upload_run(storage, settings.runs_root / args.run_id, args.destination or f"runs/{args.run_id}")))
-    elif args.command == "download-run": print("\n".join(str(path) for path in download_run(storage, args.source or f"runs/{args.run_id}", settings.runs_root / args.run_id)))
+    elif args.command == "upload-run":
+        storage = photo_storage(settings)
+        print("\n".join(upload_run(storage, settings.runs_root / args.run_id, args.destination or f"runs/{args.run_id}")))
+    elif args.command == "download-run":
+        storage = photo_storage(settings)
+        print("\n".join(str(path) for path in download_run(storage, args.source or f"runs/{args.run_id}", settings.runs_root / args.run_id)))
     elif args.command == "prepare-dataset":
         from .training import prepare_dataset
+        storage = photo_storage(settings)
         prepare_dataset(settings, storage, settings.annotations_path, args.version, args.output.resolve())
     elif args.command == "train":
         from .training import train

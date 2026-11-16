@@ -29,6 +29,8 @@ python3 -m basura_vision.cli cluster \
 
 La primera extracción puede descargar los pesos ImageNet de ResNet18. El resultado esperado es `embeddings.npy` con 22 vectores, `embedding_index.jsonl`, `assignments.jsonl` y `clustering.json`. Después puede abrirse `reference_30_smoke` en el visor. La validación comparable sigue siendo PCA-30 y K-means-15 sobre las 3.000.
 
+Una vez descargada la corrida, `embed` y `cluster` trabajan únicamente con sus archivos locales y no abren la conexión S3. Esto permite continuar aunque la API de conexiones de CML esté temporalmente indisponible. Los comandos que leen o escriben objetos —detección, descarga, subida, visor, anotador y preparación del dataset— sí inicializan el almacenamiento configurado.
+
 ## Git
 
 El repositorio independiente fue publicado en GitHub. `.env`, fotos, anotaciones, pesos y corridas permanecen excluidos. Antes de cada publicación revisar `git status --short` y `git check-ignore -v` para los activos locales.

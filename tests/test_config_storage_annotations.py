@@ -87,7 +87,7 @@ class CoreTests(unittest.TestCase):
         settings = SimpleNamespace(runs_root=Path("runs"))
         with (
             patch("basura_vision.cli.load_settings", return_value=settings),
-            patch("basura_vision.cli.photo_storage", return_value=object()),
+            patch("basura_vision.cli.photo_storage", side_effect=AssertionError("cluster no debe abrir S3")),
             patch("basura_vision.clustering.cluster_run") as cluster_run,
         ):
             main([
@@ -101,6 +101,16 @@ class CoreTests(unittest.TestCase):
             clusters=3,
             pca_components=10,
         )
+
+    def test_embed_cli_does_not_open_storage(self):
+        settings = SimpleNamespace(runs_root=Path("runs"))
+        with (
+            patch("basura_vision.cli.load_settings", return_value=settings),
+            patch("basura_vision.cli.photo_storage", side_effect=AssertionError("embed no debe abrir S3")),
+            patch("basura_vision.clustering.extract_embeddings") as extract_embeddings,
+        ):
+            main(["embed", "--run-id", "reference_30_smoke"])
+        extract_embeddings.assert_called_once_with(Path("runs/reference_30_smoke"))
 
 
 if __name__ == "__main__":
