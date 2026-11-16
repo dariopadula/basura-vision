@@ -9,6 +9,7 @@ from basura_vision.annotator import load_annotations, save_annotations, validate
 from basura_vision.config import ConfigError, load_settings
 from basura_vision.storage import S3Storage, LocalStorage, download_run, upload_run
 from basura_vision.training import yolo_label
+from scripts.run_viewer_cloudera import assigned_port
 
 
 class CoreTests(unittest.TestCase):
@@ -62,6 +63,12 @@ class CoreTests(unittest.TestCase):
     def test_normalized_box_matches_yolo_contract(self):
         line = yolo_label({"class": "residuos", "box": [0.1, 0.2, 0.3, 0.4]})
         self.assertEqual(line, "1 0.20000000 0.30000000 0.20000000 0.20000000")
+
+    def test_cloudera_launcher_uses_assigned_port(self):
+        self.assertEqual(assigned_port({"CDSW_READONLY_PORT": "8100", "CDSW_APP_PORT": "8090"}), "8100")
+        self.assertEqual(assigned_port({"CDSW_APP_PORT": "8090"}), "8090")
+        with self.assertRaisesRegex(RuntimeError, "no asignó"):
+            assigned_port({})
 
 
 if __name__ == "__main__":

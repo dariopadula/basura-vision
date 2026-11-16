@@ -1,6 +1,6 @@
 # Visores en Cloudera AI Workbench
 
-Guía corta para abrir las dos interfaces de `basura-vision` dentro de una sesión activa de Cloudera. Los procesos duran mientras la sesión permanezca activa. Para acceso permanente todavía falta validar una Cloudera Application.
+Guía corta para abrir las dos interfaces de `basura-vision` dentro de una sesión activa de Cloudera. Los procesos duran mientras la sesión permanezca activa. El repositorio incluye además un lanzador del visor de resultados como Cloudera Application; su validación queda registrada por separado cuando se ejecute.
 
 ## Antes de iniciar
 
@@ -120,4 +120,19 @@ sed -n '1,120p' /tmp/basura_vision_annotator.log
 ```
 
 No iniciar dos visores en el mismo puerto. Si el log informa `Address already in use`, detener primero el proceso anterior. La sesión y su Web UI deben permanecer activas.
+
+## Visor como Cloudera Application
+
+El script `scripts/run_viewer_cloudera.py` toma automáticamente `CDSW_READONLY_PORT` —o `CDSW_APP_PORT` si el primero no existe— y enlaza el servidor a `127.0.0.1`. Si la corrida local no existe, la restaura desde S3 antes de iniciar el visor.
+
+Al crear la Application seleccionar:
+
+- **Script:** `scripts/run_viewer_cloudera.py`.
+- **Runtime:** el mismo Python 3.10 comprobado en la sesión.
+- **Variable `BV_RUN_ID`:** `reference_30_application`.
+- **Variable `BV_RUN_SOURCE`:** `runs/reference_30_cloudera`.
+
+La Application también necesita acceso a las variables de `.env` o a sus equivalentes configuradas en el proyecto: conexión, bucket, prefijo y objeto del modelo. El modelo no se usa para mostrar una corrida, pero la configuración común valida el almacenamiento S3.
+
+El primer inicio descarga los artefactos guardados; los siguientes reutilizan la copia local si está completa. El visor no ejecuta YOLO.
 
