@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "basura-vision"
+version = "0.1.0"
+description = "Deteccion, agrupacion y revision de fotos de residuos"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "numpy>=1.24,<3",
+  "Pillow>=10,<14",
+  "scikit-learn>=1.4,<2",
+  "torch>=2.3,<3",
+  "torchvision>=0.18,<1",
+  "ultralytics>=8.3,<9",
+]
+
+[project.optional-dependencies]
+s3 = ["boto3>=1.34,<2"]
+dev = []
+
+[project.scripts]
+basura-vision = "basura_vision.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
