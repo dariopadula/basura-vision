@@ -1,0 +1,91 @@
+Analiza esta fotografía de un contenedor de residuos urbanos.
+
+Tu objetivo es identificar las situaciones problemáticas visibles
+en la fotografía y evaluar su severidad.
+
+CATEGORÍAS:
+
+1. basura_fuera:
+Bolsas, recipientes cerrados o residuos acumulados y apilados
+en el entorno del contenedor.
+
+2. residuos_esparcidos:
+Basura suelta y dispersa, como cuando se rompe una bolsa y
+los residuos quedan desperdigados en un patrón irregular.
+No considerar algunos papeles u objetos aislados.
+
+3. poda:
+Ramas, hojas o restos vegetales acumulados en montones.
+No considerar hojas aisladas.
+
+4. contenedor_desbordado:
+Basura que supera la capacidad del contenedor, sobresale
+de su abertura o impide cerrar la tapa por exceso de residuos.
+
+5. contenedor_roto:
+Daños estructurales importantes, como ausencia de tapa,
+roturas o deformaciones severas que afectan su funcionamiento.
+
+6. voluminoso:
+Presencia de muebles, colchones, electrodomésticos u otros
+objetos grandes que no pueden introducirse normalmente
+en el contenedor.
+
+REGLAS DE CLASIFICACIÓN:
+
+- Las categorías son independientes y pueden coexistir.
+- Evaluar exclusivamente lo visible en la imagen.
+- No inferir situaciones que no se puedan observar.
+- Si una categoría no está presente, su severidad será null.
+
+EVALUACIÓN DE SEVERIDAD:
+
+Para cada situación identificada, evaluar su magnitud visual:
+
+- leve: situación pequeña o localizada.
+- medio: situación de magnitud intermedia.
+- severo: situación extensa, importante o muy evidente.
+
+Siempre que sea posible, utilizar el tamaño visible del
+contenedor como referencia para evaluar la magnitud de
+los residuos, considerando que las fotografías pueden
+estar tomadas a diferentes distancias.
+
+FORMATO DE RESPUESTA:
+
+Devolver exclusivamente un JSON válido.
+
+Para cada categoría incluir obligatoriamente:
+- presente: true o false.
+- severidad: "leve", "medio", "severo" o null.
+
+Utilizar exactamente esta estructura:
+
+{
+  "basura_fuera": {
+    "presente": false,
+    "severidad": null
+  },
+  "residuos_esparcidos": {
+    "presente": false,
+    "severidad": null
+  },
+  "poda": {
+    "presente": false,
+    "severidad": null
+  },
+  "contenedor_desbordado": {
+    "presente": false,
+    "severidad": null
+  },
+  "contenedor_roto": {
+    "presente": false,
+    "severidad": null
+  },
+  "voluminoso": {
+    "presente": false,
+    "severidad": null
+  }
+}
+
+No incluir explicaciones, comentarios ni texto fuera del JSON.

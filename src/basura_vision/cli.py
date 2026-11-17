@@ -26,6 +26,7 @@ def main(argv=None):
     download = commands.add_parser("download-run"); download.add_argument("--run-id", required=True); download.add_argument("--source")
     prepare = commands.add_parser("prepare-dataset"); prepare.add_argument("--version", required=True); prepare.add_argument("--output", type=Path, default=ROOT / "training_data")
     training = commands.add_parser("train"); training.add_argument("--dataset", type=Path, required=True); training.add_argument("--initial-weight", type=Path, required=True); training.add_argument("--output", type=Path, required=True); training.add_argument("--epochs", type=int, default=50)
+    bedrock = commands.add_parser("bedrock-one"); bedrock.add_argument("--run-id", required=True); bedrock.add_argument("--photo-id", required=True); bedrock.add_argument("--model-id"); bedrock.add_argument("--region")
     args = parser.parse_args(argv); settings = load_settings(args.env_file)
     if args.command == "detect":
         from .detection import run_detection
@@ -58,6 +59,18 @@ def main(argv=None):
     elif args.command == "train":
         from .training import train
         train(args.dataset.resolve(), args.initial_weight.resolve(), args.output.resolve(), args.epochs)
+    elif args.command == "bedrock-one":
+        from .bedrock import label_one_photo
+        storage = photo_storage(settings)
+        destination = label_one_photo(
+            settings,
+            storage,
+            args.run_id,
+            args.photo_id,
+            args.model_id or settings.bedrock_model_id,
+            args.region or settings.bedrock_region,
+        )
+        print(destination)
 
 
 if __name__ == "__main__": main()

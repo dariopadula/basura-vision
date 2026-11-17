@@ -47,6 +47,18 @@ python -m basura_vision.cli embed --run-id lote_3000
 python -m basura_vision.cli cluster --run-id lote_3000 --clusters 15 --pca-components 30
 ```
 
+## Prueba opcional de Bedrock con una foto
+
+Las credenciales AWS se configuran fuera del repositorio. `BV_BEDROCK_MODEL_ID` y `BV_BEDROCK_REGION` son opcionales; el modelo predeterminado es `amazon.nova-lite-v1:0`. Para etiquetar una única foto original de una corrida:
+
+```bash
+python3 -m basura_vision.cli bedrock-one \
+  --run-id reference_30_smoke \
+  --photo-id 180072_3848356_6204427
+```
+
+El comando no procesa el resto del lote. Corrige la orientación, normaliza la imagen a JPEG, exige el JSON de seis categorías y guarda el resultado bajo `runs/<run-id>/bedrock/`, junto con modelo, región, versión y hash del prompt, uso y latencia informados por Bedrock. Los resultados y credenciales permanecen fuera de Git. El prompt versionado está en `prompts/bedrock_labels_v1.txt`.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:

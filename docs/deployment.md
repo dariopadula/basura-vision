@@ -29,6 +29,8 @@ python3 -m basura_vision.cli cluster \
 
 La primera extracción puede descargar los pesos ImageNet de ResNet18. El resultado esperado es `embeddings.npy` con 22 vectores, `embedding_index.jsonl`, `assignments.jsonl` y `clustering.json`. Después puede abrirse `reference_30_smoke` en el visor. La validación comparable sigue siendo PCA-30 y K-means-15 sobre las 3.000.
 
+Validación realizada en CML el 2026-11-17: ResNet18 produjo una matriz 22 × 512; PCA-10/K-means-3 generó 22 asignaciones —grupos de 12, 2 y 1 casos, más siete `sin_contenedor`— y el visor mostró los grupos, originales y recortes. La distribución no se interpreta como calidad porque solo hay 15 casos agrupables.
+
 Una vez descargada la corrida, `embed` y `cluster` trabajan únicamente con sus archivos locales y no abren la conexión S3. Esto permite continuar aunque la API de conexiones de CML esté temporalmente indisponible. Los comandos que leen o escriben objetos —detección, descarga, subida, visor, anotador y preparación del dataset— sí inicializan el almacenamiento configurado.
 
 ## Git
@@ -37,5 +39,22 @@ El repositorio independiente fue publicado en GitHub. `.env`, fotos, anotaciones
 
 ## Bedrock opcional
 
-Queda desactivado. La futura integración recibirá un JSONL exportado por el visor, leerá la foto original por `Storage`, enviará la guía vigente de seis etiquetas y guardará respuesta estructurada, ID/versión del modelo y hash/versión de la guía en una corrida separada. Faltan región, modelo habilitado, permisos y guía definitiva; no se simula una validación sin esos datos.
+No se ejecuta como parte de detección ni clustering. La conexión de Bedrock fue comprobada en CML sin exponer credenciales. El comando `bedrock-one` implementa una prueba explícita sobre una única foto original: lee el objeto mediante `Storage`, corrige su orientación, invoca `Converse` y valida las seis categorías y severidades antes de guardar el resultado en la corrida.
+
+Configurar las credenciales mediante el mecanismo privado de CML y, opcionalmente, estas variables no sensibles:
+
+```text
+BV_BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+BV_BEDROCK_REGION=<region-habilitada>
+```
+
+Prueba preparada, todavía no ejecutada contra el modelo real:
+
+```bash
+python3 -m basura_vision.cli bedrock-one \
+  --run-id reference_30_smoke \
+  --photo-id 180072_3848356_6204427
+```
+
+La salida incluye el JSON validado, ID y ruta de foto, fuente `original`, modelo, región, versión y SHA-256 del prompt, uso, latencia y motivo de finalización. El prompt `bedrock_labels_v1` conserva exactamente las seis categorías facilitadas. Doce pruebas pasan; una usa un cliente simulado y no constituye evidencia de invocación real. El procesamiento por lote y el resumen por clúster siguen pendientes hasta validar esta llamada individual.
 
