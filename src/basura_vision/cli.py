@@ -27,6 +27,7 @@ def main(argv=None):
     prepare = commands.add_parser("prepare-dataset"); prepare.add_argument("--version", required=True); prepare.add_argument("--output", type=Path, default=ROOT / "training_data")
     training = commands.add_parser("train"); training.add_argument("--dataset", type=Path, required=True); training.add_argument("--initial-weight", type=Path, required=True); training.add_argument("--output", type=Path, required=True); training.add_argument("--epochs", type=int, default=50)
     bedrock = commands.add_parser("bedrock-one"); bedrock.add_argument("--run-id", required=True); bedrock.add_argument("--photo-id", required=True); bedrock.add_argument("--model-id"); bedrock.add_argument("--region")
+    batch = commands.add_parser("bedrock-batch"); batch.add_argument("--run-id", required=True); batch.add_argument("--label-run-id", required=True); batch.add_argument("--model-id"); batch.add_argument("--region"); batch.add_argument("--checkpoint-every", type=positive_integer, default=5); batch.add_argument("--no-upload", action="store_true")
     args = parser.parse_args(argv); settings = load_settings(args.env_file)
     if args.command == "detect":
         from .detection import run_detection
@@ -71,6 +72,25 @@ def main(argv=None):
             args.region or settings.bedrock_region,
         )
         print(destination)
+    elif args.command == "bedrock-batch":
+        from .bedrock import label_batch
+        storage = photo_storage(settings)
+        destination = None
+        if settings.storage == "s3" and not args.no_upload:
+            destination = f"runs/{args.run_id}/bedrock/{args.label_run_id}"
+        label_dir = label_batch(
+            settings,
+            storage,
+            args.run_id,
+            args.label_run_id,
+            args.model_id or settings.bedrock_model_id,
+            args.region or settings.bedrock_region,
+            args.checkpoint_every,
+            destination,
+        )
+        print(label_dir)
+        if destination:
+            print(f"S3: {destination}")
 
 
 if __name__ == "__main__": main()

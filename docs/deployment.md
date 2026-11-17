@@ -56,5 +56,18 @@ python3 -m basura_vision.cli bedrock-one \
   --photo-id 180072_3848356_6204427
 ```
 
-La salida incluye el JSON validado, ID y ruta de foto, fuente `original`, modelo, región, versión y SHA-256 del prompt, uso, latencia y motivo de finalización. El prompt `bedrock_labels_v1` conserva exactamente las seis categorías facilitadas. El lector acepta JSON puro o el mismo objeto envuelto en un bloque Markdown `json`, manteniendo el texto original para auditoría. Doce pruebas pasan; una usa un cliente simulado. La primera llamada real alcanzó Nova Lite, pero su respuesta envuelta fue rechazada antes de esta corrección; falta repetirla para acreditar el ciclo completo. El procesamiento por lote y el resumen por clúster siguen pendientes.
+La salida incluye el JSON validado, ID y ruta de foto, fuente `original`, modelo, región, versión y SHA-256 del prompt, uso, latencia y motivo de finalización. El prompt `bedrock_labels_v1` conserva exactamente las seis categorías facilitadas. El lector acepta JSON puro o un objeto rodeado por texto/bloque Markdown, manteniendo el texto original para auditoría. Doce pruebas pasan.
+
+Validación real realizada en CML el 2026-11-17 sobre `180072_3848356_6204427`: Nova Lite devolvió y el sistema guardó las seis categorías; consumió 2.754 tokens de entrada y 175 de salida, informó 1.433 ms y `end_turn`. La revisión visual considera plausibles basura fuera, residuos esparcidos y poda; `voluminoso=false` también es razonable. Las severidades `severo` para contenedor desbordado y roto no están claramente sustentadas por la imagen y requieren calibración. `bedrock-one` reemplaza el archivo del mismo ID; el lote separado conserva su selección y reanuda sin repetir resultados completos.
+
+La prueba de lote quedó implementada, pero todavía no ejecutada contra Bedrock real:
+
+```bash
+python3 -m basura_vision.cli bedrock-batch \
+  --run-id reference_30_smoke \
+  --label-run-id nova_lite__bedrock_labels_v1__reference30 \
+  --checkpoint-every 5
+```
+
+La corrida usa las 30 fotos originales y una selección congelada. Cada resultado se agrega localmente a `results.jsonl`; una repetición omite IDs completados. Cada cinco intentos actualiza `run.json` y `cluster_summary.json` y sube el directorio a `runs/reference_30_smoke/bedrock/<label-run-id>` dentro del prefijo S3 configurado. Los errores se registran aparte y se reintentan al reanudar. El modelo o hash de prompt no pueden cambiar dentro del mismo `label-run-id`. Trece pruebas pasan, incluida una interrupción simulada mediante una segunda ejecución que no repite llamadas completadas.
 

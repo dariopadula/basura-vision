@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from PIL import Image
 
-from basura_vision.bedrock import CATEGORIES, label_one_photo
+from basura_vision.bedrock import CATEGORIES, label_batch, label_one_photo
 from basura_vision.manifests import write_jsonl
 from basura_vision.storage import LocalStorage
 
@@ -16,9 +16,11 @@ class FakeBedrockClient:
         self.labels = labels
         self.meta = SimpleNamespace(region_name="us-east-1")
         self.request = None
+        self.request_count = 0
 
     def converse(self, **request):
         self.request = request
+        self.request_count += 1
         return {
             "output": {
                 "message": {
@@ -65,6 +67,62 @@ class BedrockTests(unittest.TestCase):
             image = client.request["messages"][0]["content"][0]["image"]
             self.assertEqual(image["format"], "jpeg")
             self.assertTrue(image["source"]["bytes"].startswith(b"\xff\xd8"))
+
+    def test_batch_writes_jsonl_summary_and_resumes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            photos = root / "photos"
+            photos.mkdir()
+            manifest = []
+            detections = []
+            for index in range(3):
+                name = f"photo_{index}.jpg"
+                Image.new("RGB", (20, 10), "white").save(photos / name)
+                manifest.append({"id": f"photo_{index}", "path": name})
+                detections.append({
+                    "id": f"photo_{index}",
+                    "path": name,
+                    "status": "agrupable" if index < 2 else "sin_residuos",
+                })
+            run_dir = root / "runs" / "reference_30_smoke"
+            run_dir.mkdir(parents=True)
+            write_jsonl(run_dir / "manifest.jsonl", manifest)
+            write_jsonl(run_dir / "detections.jsonl", detections)
+            settings = SimpleNamespace(runs_root=root / "runs")
+            labels = {
+                category: {"presente": False, "severidad": None}
+                for category in CATEGORIES
+            }
+            client = FakeBedrockClient(labels)
+
+            label_dir = label_batch(
+                settings,
+                LocalStorage(photos),
+                "reference_30_smoke",
+                "nova_lite_labels_v1",
+                "amazon.nova-lite-v1:0",
+                checkpoint_every=2,
+                client=client,
+            )
+
+            results = (label_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()
+            summary = json.loads((label_dir / "cluster_summary.json").read_text(encoding="utf-8"))
+            run = json.loads((label_dir / "run.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(results), 3)
+            self.assertEqual(summary["completed"], 3)
+            self.assertEqual(run["status"], "complete")
+            self.assertEqual(client.request_count, 3)
+
+            label_batch(
+                settings,
+                LocalStorage(photos),
+                "reference_30_smoke",
+                "nova_lite_labels_v1",
+                "amazon.nova-lite-v1:0",
+                checkpoint_every=2,
+                client=client,
+            )
+            self.assertEqual(client.request_count, 3)
 
 
 if __name__ == "__main__":

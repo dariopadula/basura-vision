@@ -59,6 +59,17 @@ python3 -m basura_vision.cli bedrock-one \
 
 El comando no procesa el resto del lote. Corrige la orientación, normaliza la imagen a JPEG, exige el JSON de seis categorías y guarda el resultado bajo `runs/<run-id>/bedrock/`, junto con modelo, región, versión y hash del prompt, uso y latencia informados por Bedrock. Los resultados y credenciales permanecen fuera de Git. El prompt versionado está en `prompts/bedrock_labels_v1.txt`.
 
+Después de validar una foto, el lote completo se ejecuta con una identidad propia:
+
+```bash
+python3 -m basura_vision.cli bedrock-batch \
+  --run-id reference_30_smoke \
+  --label-run-id nova_lite__bedrock_labels_v1__reference30 \
+  --checkpoint-every 5
+```
+
+Procesa las 30 fotos originales del manifiesto. Mantiene localmente `run.json`, `prompt.txt`, `selection.jsonl`, `results.jsonl`, `errors.jsonl` cuando corresponda y `cluster_summary.json`. En CML con almacenamiento S3, sube automáticamente un checkpoint cada cinco intentos y la versión final bajo `runs/reference_30_smoke/bedrock/<label-run-id>`. Una repetición con el mismo ID omite fotos completadas; un modelo o hash de prompt distinto se rechaza para evitar mezclar corridas. `--no-upload` deja la ejecución solo local.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:
