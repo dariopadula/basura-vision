@@ -37,7 +37,10 @@ def extract_embeddings(run_dir: Path) -> Path:
 
 
 def cluster_run(run_dir: Path, clusters: int = 15, pca_components: int = 30) -> Path:
-    rows = read_jsonl(run_dir / "embedding_index.jsonl")
+    rows = read_jsonl(
+        run_dir / "embedding_index.jsonl",
+        required_fields={"id", "ratio", "status"},
+    )
     vectors = np.load(run_dir / "embeddings.npy")
     valid = np.asarray([row["ratio"] is not None for row in rows])
     if valid.sum() < max(clusters, pca_components + 1):

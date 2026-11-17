@@ -1,14 +1,19 @@
 import os
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import numpy as np
+
 from basura_vision.annotator import load_annotations, save_annotations, validate_boxes
 from basura_vision.cli import main
+from basura_vision.clustering import cluster_run
 from basura_vision.config import ConfigError, load_settings
+from basura_vision.manifests import read_jsonl, write_jsonl
 from basura_vision.storage import S3Storage, LocalStorage, download_run, upload_run
 from basura_vision.training import yolo_label
 from scripts.run_viewer_cloudera import assigned_port
@@ -111,6 +116,28 @@ class CoreTests(unittest.TestCase):
         ):
             main(["embed", "--run-id", "reference_30_smoke"])
         extract_embeddings.assert_called_once_with(Path("runs/reference_30_smoke"))
+
+    def test_cluster_reads_embedding_index_without_photo_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            rows = [
+                {"id": f"photo_{index:02d}", "ratio": index / 100, "status": "agrupable"}
+                for index in range(1, 16)
+            ]
+            write_jsonl(run_dir / "embedding_index.jsonl", rows)
+            vectors = np.random.default_rng(42).normal(size=(15, 512)).astype(np.float32)
+            np.save(run_dir / "embeddings.npy", vectors)
+
+            result = cluster_run(run_dir, clusters=3, pca_components=10)
+
+            assignments = read_jsonl(
+                result,
+                required_fields={"id", "cluster", "pc1", "pc2", "ratio"},
+            )
+            self.assertEqual(len(assignments), 15)
+            self.assertEqual({row["cluster"] for row in assignments}, {1, 2, 3})
+            parameters = json.loads((run_dir / "clustering.json").read_text(encoding="utf-8"))
+            self.assertEqual((parameters["pca_components"], parameters["clusters"]), (10, 3))
 
 
 if __name__ == "__main__":

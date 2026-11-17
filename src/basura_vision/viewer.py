@@ -18,7 +18,13 @@ def build_items(run_dir: Path) -> list[dict]:
     manifest = {row["id"]: row for row in read_jsonl(run_dir / "manifest.jsonl")}
     detections = {row["id"]: row for row in read_jsonl(run_dir / "detections.jsonl")}
     assignment_path = run_dir / "assignments.jsonl"
-    assignments = {row["id"]: row for row in read_jsonl(assignment_path)} if assignment_path.is_file() else {}
+    assignments = {
+        row["id"]: row
+        for row in read_jsonl(
+            assignment_path,
+            required_fields={"id", "cluster", "pc1", "pc2", "ratio"},
+        )
+    } if assignment_path.is_file() else {}
     items = []
     for photo_id, item in manifest.items():
         detection = detections[photo_id]

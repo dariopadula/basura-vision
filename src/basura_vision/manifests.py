@@ -5,10 +5,10 @@ from pathlib import Path
 
 from .storage import safe_key
 
-REQUIRED = {"id", "path"}
+REQUIRED = frozenset({"id", "path"})
 
 
-def read_jsonl(path: Path) -> list[dict]:
+def read_jsonl(path: Path, required_fields=REQUIRED) -> list[dict]:
     rows = []
     ids = set()
     for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
@@ -18,17 +18,21 @@ def read_jsonl(path: Path) -> list[dict]:
             row = json.loads(line)
         except json.JSONDecodeError as exc:
             raise ValueError(f"{path}:{number}: JSON inválido") from exc
-        missing = REQUIRED - row.keys()
+        if not isinstance(row, dict):
+            raise ValueError(f"{path}:{number}: se esperaba un objeto JSON")
+        missing = set(required_fields) - row.keys()
         if missing:
             raise ValueError(f"{path}:{number}: faltan {sorted(missing)}")
-        row["id"] = str(row["id"]).strip()
-        if not row["id"] or row["id"] in ids:
-            raise ValueError(f"{path}:{number}: ID vacío o duplicado: {row['id']!r}")
-        row["path"] = safe_key(str(row["path"]))
-        ids.add(row["id"])
+        if "id" in row:
+            row["id"] = str(row["id"]).strip()
+            if not row["id"] or row["id"] in ids:
+                raise ValueError(f"{path}:{number}: ID vacío o duplicado: {row['id']!r}")
+            ids.add(row["id"])
+        if "path" in row:
+            row["path"] = safe_key(str(row["path"]))
         rows.append(row)
     if not rows:
-        raise ValueError(f"Manifiesto vacío: {path}")
+        raise ValueError(f"JSONL vacío: {path}")
     return rows
 
 
