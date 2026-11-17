@@ -34,10 +34,25 @@ def prepare_image(data: bytes) -> bytes:
 
 
 def parse_labels(text: str) -> dict:
+    candidate = text.strip()
+    if candidate.startswith("```"):
+        lines = candidate.splitlines()
+        if lines and lines[0].strip().lower() in {"```", "```json"}:
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        candidate = "\n".join(lines).strip()
     try:
-        labels = json.loads(text.strip())
+        labels = json.loads(candidate)
     except json.JSONDecodeError as exc:
-        raise ValueError("Bedrock no devolvió un JSON válido") from exc
+        start = candidate.find("{")
+        end = candidate.rfind("}")
+        if start < 0 or end <= start:
+            raise ValueError("Bedrock no devolvió un JSON válido") from exc
+        try:
+            labels = json.loads(candidate[start:end + 1])
+        except json.JSONDecodeError as nested_exc:
+            raise ValueError("Bedrock no devolvió un JSON válido") from nested_exc
     if not isinstance(labels, dict) or set(labels) != set(CATEGORIES):
         raise ValueError(f"La respuesta debe contener exactamente: {', '.join(CATEGORIES)}")
     for category in CATEGORIES:

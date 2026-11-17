@@ -20,7 +20,11 @@ class FakeBedrockClient:
     def converse(self, **request):
         self.request = request
         return {
-            "output": {"message": {"content": [{"text": json.dumps(self.labels)}]}},
+            "output": {
+                "message": {
+                    "content": [{"text": f"Resultado:\n```json\n{json.dumps(self.labels)}\n```"}],
+                },
+            },
             "usage": {"inputTokens": 100, "outputTokens": 50},
             "metrics": {"latencyMs": 25},
             "stopReason": "end_turn",

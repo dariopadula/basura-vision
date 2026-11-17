@@ -56,5 +56,5 @@ python3 -m basura_vision.cli bedrock-one \
   --photo-id 180072_3848356_6204427
 ```
 
-La salida incluye el JSON validado, ID y ruta de foto, fuente `original`, modelo, región, versión y SHA-256 del prompt, uso, latencia y motivo de finalización. El prompt `bedrock_labels_v1` conserva exactamente las seis categorías facilitadas. Doce pruebas pasan; una usa un cliente simulado y no constituye evidencia de invocación real. El procesamiento por lote y el resumen por clúster siguen pendientes hasta validar esta llamada individual.
+La salida incluye el JSON validado, ID y ruta de foto, fuente `original`, modelo, región, versión y SHA-256 del prompt, uso, latencia y motivo de finalización. El prompt `bedrock_labels_v1` conserva exactamente las seis categorías facilitadas. El lector acepta JSON puro o el mismo objeto envuelto en un bloque Markdown `json`, manteniendo el texto original para auditoría. Doce pruebas pasan; una usa un cliente simulado. La primera llamada real alcanzó Nova Lite, pero su respuesta envuelta fue rechazada antes de esta corrección; falta repetirla para acreditar el ciclo completo. El procesamiento por lote y el resumen por clúster siguen pendientes.
 
