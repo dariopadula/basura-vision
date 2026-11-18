@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import math
+import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,7 @@ CONTAINER_CONFIDENCE = 0.25
 PREDICT_CONFIDENCE = 0.05
 IOU = 0.70
 MAX_DETECTIONS = 300
+CHECKPOINT_EVERY = 25
 
 
 def sha256(path: Path) -> str:
@@ -87,6 +89,71 @@ def resolve_model(settings: Settings, storage: Storage) -> Path:
     raise FileNotFoundError(f"No existe el peso activo: {settings.model_path}. Configure BV_MODEL_PATH o BV_MODEL_OBJECT.")
 
 
+def _write_metadata(path: Path, metadata: dict) -> None:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary, path)
+
+
+def _resume_index(manifest: list[dict], detections: list[dict], run_dir: Path) -> int:
+    expected = [row["id"] for row in manifest[: len(detections)]]
+    actual = [row["id"] for row in detections]
+    if actual != expected:
+        raise ValueError("La corrida parcial no coincide con el prefijo del manifiesto")
+    for row in detections:
+        crop_path = row.get("crop_path")
+        if crop_path and not (run_dir / crop_path).is_file():
+            raise FileNotFoundError(f"Falta el recorte parcial: {crop_path}")
+    return len(detections)
+
+
+def _metadata(
+    settings: Settings,
+    run_id: str,
+    run_model: Path,
+    model_hash: str,
+    model_names: dict,
+    device: str,
+    detections: list[dict],
+    total: int,
+    created_at: str,
+    state: str,
+) -> dict:
+    statuses = ("agrupable", "sin_residuos", "sin_contenedor", "error_entrada")
+    return {
+        "schema_version": 1,
+        "run_id": run_id,
+        "created_at": created_at,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "state": state,
+        "processed": len(detections),
+        "total": total,
+        "app_env": settings.app_env,
+        "model": {
+            "path": run_model.relative_to(run_model.parents[1]).as_posix(),
+            "filename": run_model.name,
+            "sha256": model_hash,
+            "classes": model_names,
+        },
+        "parameters": {
+            "predict_confidence": PREDICT_CONFIDENCE,
+            "waste_confidence": WASTE_CONFIDENCE,
+            "container_confidence": CONTAINER_CONFIDENCE,
+            "iou": IOU,
+            "max_detections": MAX_DETECTIONS,
+            "requested_device": settings.device,
+            "device": device,
+        },
+        "counts": {
+            status: sum(row["status"] == status for row in detections)
+            for status in statuses
+        },
+    }
+
+
 def run_detection(settings: Settings, storage: Storage, manifest_path: Path, run_id: str) -> Path:
     from ultralytics import YOLO
 
@@ -98,36 +165,111 @@ def run_detection(settings: Settings, storage: Storage, manifest_path: Path, run
     if model.names != {0: "contenedor", 1: "residuos"}:
         raise ValueError(f"Mapa de clases inesperado: {model.names!r}")
     run_dir = settings.runs_root / run_id
-    if run_dir.exists():
-        raise FileExistsError(f"La corrida ya existe: {run_dir}")
-    (run_dir / "crops").mkdir(parents=True)
-    (run_dir / "model").mkdir()
+    (run_dir / "crops").mkdir(parents=True, exist_ok=True)
+    (run_dir / "model").mkdir(exist_ok=True)
     run_model = run_dir / "model" / model_path.name
-    shutil.copy2(model_path, run_model)
-    write_jsonl(run_dir / "manifest.jsonl", manifest)
-    detections = []
-    for number, item in enumerate(manifest, 1):
-        with Image.open(io.BytesIO(storage.read_bytes(item["path"]))) as source:
-            image = ImageOps.exif_transpose(source).convert("RGB")
-        prediction = model.predict(image, conf=PREDICT_CONFIDENCE, iou=IOU, max_det=MAX_DETECTIONS, device=device, verbose=False)[0]
-        result, crop = analyze_prediction(image, prediction)
-        crop_path = None
-        if crop is not None:
-            crop_path = f"crops/{item['id']}.jpg"
-            crop.save(run_dir / crop_path, quality=95)
-        result.update(id=item["id"], path=item["path"], event_id=item.get("event_id"), width=image.width, height=image.height, crop_path=crop_path)
-        detections.append(result)
-        print(f"{number}/{len(manifest)} {item['id']} {result['status']}", flush=True)
-    write_jsonl(run_dir / "detections.jsonl", detections)
-    metadata = {
-        "schema_version": 1,
-        "run_id": run_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "app_env": settings.app_env,
-        "model": {"path": run_model.relative_to(run_dir).as_posix(), "filename": model_path.name, "sha256": sha256(model_path), "classes": model.names},
-        "parameters": {"predict_confidence": PREDICT_CONFIDENCE, "waste_confidence": WASTE_CONFIDENCE, "container_confidence": CONTAINER_CONFIDENCE, "iou": IOU, "max_detections": MAX_DETECTIONS, "requested_device": settings.device, "device": device},
-        "counts": {status: sum(row["status"] == status for row in detections) for status in ("agrupable", "sin_residuos", "sin_contenedor")},
-    }
-    (run_dir / "run.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    model_hash = sha256(model_path)
+    if run_model.is_file():
+        if sha256(run_model) != model_hash:
+            raise ValueError("El peso de la corrida parcial no coincide con el peso activo")
+    else:
+        shutil.copy2(model_path, run_model)
+
+    saved_manifest = run_dir / "manifest.jsonl"
+    if saved_manifest.is_file():
+        if read_jsonl(saved_manifest) != manifest:
+            raise ValueError("La corrida parcial usa otro manifiesto")
+    else:
+        write_jsonl(saved_manifest, manifest)
+
+    detections_path = run_dir / "detections.jsonl"
+    detections = (
+        read_jsonl(detections_path)
+        if detections_path.is_file() and detections_path.stat().st_size
+        else []
+    )
+    start = _resume_index(manifest, detections, run_dir)
+    metadata_path = run_dir / "run.json"
+    previous = (
+        json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata_path.is_file()
+        else {}
+    )
+    previous_device = previous.get("parameters", {}).get("device")
+    if detections and previous_device and previous_device != device:
+        raise ValueError(
+            f"La corrida parcial usó {previous_device}; no puede retomarse con {device}"
+        )
+    created_at = previous.get("created_at") or datetime.now(timezone.utc).isoformat()
+    if start:
+        print(f"Retomando detección: {start}/{len(manifest)} ya procesadas", flush=True)
+    if start == len(manifest):
+        _write_metadata(
+            metadata_path,
+            _metadata(settings, run_id, run_model, model_hash, model.names, device, detections, len(manifest), created_at, "completed"),
+        )
+        print("La corrida ya estaba completa.", flush=True)
+        return run_dir
+
+    _write_metadata(
+        metadata_path,
+        _metadata(settings, run_id, run_model, model_hash, model.names, device, detections, len(manifest), created_at, "running"),
+    )
+    try:
+        with detections_path.open("a", encoding="utf-8", newline="\n") as handle:
+            for number, item in enumerate(manifest[start:], start + 1):
+                try:
+                    content = storage.read_bytes(item["path"])
+                    with Image.open(io.BytesIO(content)) as source:
+                        image = ImageOps.exif_transpose(source).convert("RGB")
+                except Exception as exc:
+                    result = {
+                        "status": "error_entrada",
+                        "reason": "source_read_failed",
+                        "error_type": type(exc).__name__,
+                        "error_message": str(exc),
+                        "boxes": [],
+                        "crop_box": None,
+                        "union_area": 0,
+                        "container_box": None,
+                        "ratio": None,
+                        "id": item["id"],
+                        "path": item["path"],
+                        "event_id": item.get("event_id"),
+                        "width": None,
+                        "height": None,
+                        "crop_path": None,
+                    }
+                else:
+                    prediction = model.predict(image, conf=PREDICT_CONFIDENCE, iou=IOU, max_det=MAX_DETECTIONS, device=device, verbose=False)[0]
+                    result, crop = analyze_prediction(image, prediction)
+                    crop_path = None
+                    if crop is not None:
+                        crop_path = f"crops/{item['id']}.jpg"
+                        crop.save(run_dir / crop_path, quality=95)
+                    result.update(id=item["id"], path=item["path"], event_id=item.get("event_id"), width=image.width, height=image.height, crop_path=crop_path)
+
+                handle.write(json.dumps(result, ensure_ascii=False, separators=(",", ":")) + "\n")
+                handle.flush()
+                detections.append(result)
+                print(f"{number}/{len(manifest)} {item['id']} {result['status']}", flush=True)
+                if number % CHECKPOINT_EVERY == 0:
+                    os.fsync(handle.fileno())
+                    _write_metadata(
+                        metadata_path,
+                        _metadata(settings, run_id, run_model, model_hash, model.names, device, detections, len(manifest), created_at, "running"),
+                    )
+            os.fsync(handle.fileno())
+    except BaseException:
+        _write_metadata(
+            metadata_path,
+            _metadata(settings, run_id, run_model, model_hash, model.names, device, detections, len(manifest), created_at, "interrupted"),
+        )
+        raise
+
+    _write_metadata(
+        metadata_path,
+        _metadata(settings, run_id, run_model, model_hash, model.names, device, detections, len(manifest), created_at, "completed"),
+    )
     return run_dir
 

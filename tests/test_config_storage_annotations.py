@@ -14,6 +14,7 @@ from basura_vision.cli import main
 from basura_vision.clustering import cluster_run
 from basura_vision.compute import resolve_device
 from basura_vision.config import ConfigError, load_settings
+from basura_vision.detection import _resume_index
 from basura_vision.manifests import read_jsonl, write_jsonl
 from basura_vision.storage import S3Storage, LocalStorage, download_run, upload_run
 from basura_vision.training import yolo_label
@@ -45,6 +46,23 @@ class CoreTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(ConfigError, "BV_DEVICE"):
                 load_settings(Path(directory) / "missing.env")
+
+    def test_detection_resume_requires_manifest_prefix_and_crops(self):
+        manifest = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            (run_dir / "crops").mkdir()
+            (run_dir / "crops/a.jpg").write_bytes(b"crop")
+            detections = [{"id": "a", "crop_path": "crops/a.jpg"}]
+            self.assertEqual(_resume_index(manifest, detections, run_dir), 1)
+            with self.assertRaisesRegex(ValueError, "prefijo"):
+                _resume_index(manifest, [{"id": "b", "crop_path": None}], run_dir)
+            with self.assertRaisesRegex(FileNotFoundError, "Falta el recorte"):
+                _resume_index(
+                    manifest,
+                    [{"id": "a", "crop_path": "crops/missing.jpg"}],
+                    run_dir,
+                )
 
     def test_cloudera_requires_s3_configuration(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"APP_ENV": "cloudera"}, clear=True):
