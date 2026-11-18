@@ -43,9 +43,12 @@ python -m basura_vision.cli cluster --run-id reference_30_smoke --clusters 3 --p
 Esta prueba solo confirma que embeddings, PCA, K-means y el visor funcionan de punta a punta. Los grupos definitivos se calculan sobre el lote de 3.000:
 
 ```powershell
-python -m basura_vision.cli embed --run-id lote_3000
-python -m basura_vision.cli cluster --run-id lote_3000 --clusters 15 --pca-components 30
+python -m basura_vision.cli detect --manifest manifests/reference_3000.jsonl --run-id reference_3000_cloudera
+python -m basura_vision.cli embed --run-id reference_3000_cloudera
+python -m basura_vision.cli cluster --run-id reference_3000_cloudera --clusters 15 --pca-components 30
 ```
+
+`manifests/reference_3000.jsonl` está versionado y selecciona exactamente 3.000 de los originales disponibles en el almacenamiento. Además conserva estado, grupo, ratio, rectángulo y PCA históricos para comparar la nueva ejecución.
 
 ## Prueba opcional de Bedrock con una foto
 
