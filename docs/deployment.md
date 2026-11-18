@@ -8,6 +8,8 @@ Las rutas del manifiesto son keys relativas a `BV_S3_PREFIX`. El detector materi
 
 La prueba real en CML se completó con Python 3.10.20, torch 2.14.1 CPU, torchvision 0.29.1 CPU, scikit-learn 1.7.2 y ultralytics 8.4.208. Las 30 fotos y el modelo se leyeron desde S3; los 30 estados, recortes y ratios coincidieron con Windows. Se guardaron 26 artefactos de corrida en S3, se restauraron en otro directorio y se abrió el visor restaurado sin ejecutar YOLO. La diferencia de scikit-learn respecto de Windows no intervino todavía porque esta prueba no ejecutó PCA/K-means.
 
+Para lotes grandes puede iniciarse una sesión con GPU. `BV_DEVICE=auto` selecciona `cuda:0` cuando la compilación instalada de PyTorch reconoce CUDA y mantiene CPU en Windows o en sesiones CML sin GPU. Detección guarda `requested_device` y `device` en `run.json`; embeddings hace lo mismo en `embeddings.json`. Una GPU visible en `nvidia-smi` no basta si PyTorch lleva el sufijo `+cpu`: debe instalarse la rueda CUDA compatible antes de ejecutar el lote.
+
 Para abrir las interfaces en una sesión consultar [visores en Cloudera](visores_cloudera.md). El visor se desplegó y abrió correctamente como Application con la corrida restaurada de 30. La corrida de 3.000 sigue pendiente.
 
 ## Prueba técnica de agrupación con las 30 fotos

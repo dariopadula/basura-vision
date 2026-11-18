@@ -9,18 +9,22 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import normalize
 
+from .compute import resolve_device
 from .manifests import read_jsonl, write_jsonl
 
 
-def extract_embeddings(run_dir: Path) -> Path:
+def extract_embeddings(run_dir: Path, requested_device: str = "auto") -> Path:
     import torch
     from torchvision.models import ResNet18_Weights, resnet18
 
     detections = read_jsonl(run_dir / "detections.jsonl")
+    device_name = resolve_device(requested_device, torch)
+    device = torch.device(device_name)
+    print(f"Dispositivo de embeddings: {device_name}", flush=True)
     weights = ResNet18_Weights.DEFAULT
     network = resnet18(weights=weights)
     network.fc = torch.nn.Identity()
-    network.eval()
+    network.eval().to(device)
     transform = weights.transforms()
     rows, vectors = [], []
     with torch.inference_mode():
@@ -28,11 +32,27 @@ def extract_embeddings(run_dir: Path) -> Path:
             if not row.get("crop_path"):
                 continue
             with Image.open(run_dir / row["crop_path"]) as image:
-                vector = network(transform(image.convert("RGB")).unsqueeze(0))[0].numpy()
+                tensor = transform(image.convert("RGB")).unsqueeze(0).to(device)
+                vector = network(tensor)[0].detach().cpu().numpy()
             rows.append({"id": row["id"], "ratio": row["ratio"], "status": row["status"]})
             vectors.append(vector)
     np.save(run_dir / "embeddings.npy", np.asarray(vectors, dtype=np.float32))
     write_jsonl(run_dir / "embedding_index.jsonl", rows)
+    (run_dir / "embeddings.json").write_text(
+        json.dumps(
+            {
+                "model": "resnet18",
+                "weights": "ResNet18_Weights.DEFAULT",
+                "requested_device": requested_device,
+                "device": device_name,
+                "count": len(rows),
+                "dimensions": 512,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return run_dir / "embeddings.npy"
 
 

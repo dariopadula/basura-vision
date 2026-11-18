@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,6 +60,7 @@ class Settings:
     viewer_run_source: str
     bedrock_model_id: str
     bedrock_region: str | None
+    device: str
     s3_connection: str | None = None
     s3_bucket: str | None = None
     s3_prefix: str = ""
@@ -80,6 +82,9 @@ def load_settings(env_file: Path | None = None) -> Settings:
         raise ConfigError("Faltan variables requeridas: " + ", ".join(required))
     default_temp = os.environ.get("TMP", os.environ.get("TEMP", "/tmp"))
     shared_port = values.get("BV_PORT")
+    device = values.get("BV_DEVICE", "auto").strip().lower()
+    if not re.fullmatch(r"auto|cpu|cuda(?::\d+)?", device):
+        raise ConfigError("BV_DEVICE debe ser auto, cpu, cuda o cuda:N")
     return Settings(
         app_env=app_env,
         storage=storage,
@@ -96,6 +101,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         viewer_run_source=values.get("BV_RUN_SOURCE", "runs/reference_30_cloudera"),
         bedrock_model_id=values.get("BV_BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0"),
         bedrock_region=values.get("BV_BEDROCK_REGION") or None,
+        device=device,
         s3_connection=values.get("BV_S3_CONNECTION"),
         s3_bucket=values.get("BV_S3_BUCKET"),
         s3_prefix=values.get("BV_S3_PREFIX", "").strip("/"),

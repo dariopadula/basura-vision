@@ -12,6 +12,7 @@ import numpy as np
 from basura_vision.annotator import load_annotations, save_annotations, validate_boxes
 from basura_vision.cli import main
 from basura_vision.clustering import cluster_run
+from basura_vision.compute import resolve_device
 from basura_vision.config import ConfigError, load_settings
 from basura_vision.manifests import read_jsonl, write_jsonl
 from basura_vision.storage import S3Storage, LocalStorage, download_run, upload_run
@@ -23,7 +24,27 @@ class CoreTests(unittest.TestCase):
     def test_default_configuration_is_local(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True):
             settings = load_settings(Path(directory) / "missing.env")
-        self.assertEqual((settings.app_env, settings.storage), ("local", "local"))
+        self.assertEqual((settings.app_env, settings.storage, settings.device), ("local", "local", "auto"))
+
+    def test_compute_device_auto_uses_available_hardware(self):
+        class FakeCuda:
+            def __init__(self, available): self.available = available
+            def is_available(self): return self.available
+            def device_count(self): return 1 if self.available else 0
+
+        self.assertEqual(resolve_device("auto", SimpleNamespace(cuda=FakeCuda(False))), "cpu")
+        self.assertEqual(resolve_device("auto", SimpleNamespace(cuda=FakeCuda(True))), "cuda:0")
+        with self.assertRaisesRegex(RuntimeError, "no la detecta"):
+            resolve_device("cuda", SimpleNamespace(cuda=FakeCuda(False)))
+
+    def test_configuration_rejects_invalid_device(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ,
+            {"BV_DEVICE": "gpu"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ConfigError, "BV_DEVICE"):
+                load_settings(Path(directory) / "missing.env")
 
     def test_cloudera_requires_s3_configuration(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"APP_ENV": "cloudera"}, clear=True):
@@ -108,14 +129,14 @@ class CoreTests(unittest.TestCase):
         )
 
     def test_embed_cli_does_not_open_storage(self):
-        settings = SimpleNamespace(runs_root=Path("runs"))
+        settings = SimpleNamespace(runs_root=Path("runs"), device="auto")
         with (
             patch("basura_vision.cli.load_settings", return_value=settings),
             patch("basura_vision.cli.photo_storage", side_effect=AssertionError("embed no debe abrir S3")),
             patch("basura_vision.clustering.extract_embeddings") as extract_embeddings,
         ):
             main(["embed", "--run-id", "reference_30_smoke"])
-        extract_embeddings.assert_called_once_with(Path("runs/reference_30_smoke"))
+        extract_embeddings.assert_called_once_with(Path("runs/reference_30_smoke"), "auto")
 
     def test_cluster_reads_embedding_index_without_photo_path(self):
         with tempfile.TemporaryDirectory() as directory:

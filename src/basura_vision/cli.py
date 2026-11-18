@@ -35,7 +35,7 @@ def main(argv=None):
         run_detection(settings, storage, args.manifest.resolve(), args.run_id)
     elif args.command == "embed":
         from .clustering import extract_embeddings
-        extract_embeddings(settings.runs_root / args.run_id)
+        extract_embeddings(settings.runs_root / args.run_id, settings.device)
     elif args.command == "cluster":
         from .clustering import cluster_run
         cluster_run(settings.runs_root / args.run_id, clusters=args.clusters, pca_components=args.pca_components)

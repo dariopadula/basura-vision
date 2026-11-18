@@ -22,6 +22,8 @@ python scripts/import_reference_assets.py D:\Git\proyecto_basura_vision_baseline
 
 En Cloudera AI Workbench no se crea otro `.venv`: el Runtime instala paquetes del proyecto bajo `/home/cdsw/.local`. La guía de despliegue registra las versiones comprobadas y la configuración S3. Sin `.env` y sin `APP_ENV`, el entorno es `local`. Rutas relativas de configuración se resuelven siempre desde esta raíz. Valores inválidos o variables requeridas ausentes producen un error directo.
 
+`BV_DEVICE=auto` es el valor predeterminado: YOLO y ResNet18 usan `cuda:0` cuando PyTorch detecta una GPU y CPU en caso contrario. Puede fijarse `cpu`, `cuda` o `cuda:N`; cada etapa registra el dispositivo resuelto en sus metadatos.
+
 ## Ejecutar y verificar la muestra fija
 
 ```powershell

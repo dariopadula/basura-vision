@@ -5,7 +5,7 @@
 - Archivo experimental: `yolo_identificacion/boxes_multiples_embeddings/entrenamientos/multiples_cajas/weights/best.pt`.
 - SHA-256: `86259dfefdf1a416488776b46937713f71f66dc153e6ab4ad57b5b58df013a3b`.
 - Clases: `0 = contenedor`, `1 = residuos`.
-- Umbrales: predicción inicial 0,05; residuos 0,10; contenedor 0,25; IoU 0,70; máximo 300 detecciones; CPU.
+- Umbrales: predicción inicial 0,05; residuos 0,10; contenedor 0,25; IoU 0,70; máximo 300 detecciones. La referencia de 30 se comprobó en CPU; la implementación vigente selecciona GPU automáticamente cuando está disponible y registra el dispositivo efectivo.
 - Entrenamiento de origen: YOLO11n, 50 épocas, tamaño 640, semilla 42. La validación experimental informó AP50 0,881 para contenedor y 0,531 para residuos.
 
 ## Agrupación de 3.000

@@ -12,6 +12,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageOps
 
 from .config import Settings
+from .compute import resolve_device
 from .manifests import read_jsonl, write_jsonl
 from .storage import Storage
 
@@ -92,6 +93,8 @@ def run_detection(settings: Settings, storage: Storage, manifest_path: Path, run
     manifest = read_jsonl(manifest_path)
     model_path = resolve_model(settings, storage)
     model = YOLO(str(model_path))
+    device = resolve_device(settings.device)
+    print(f"Dispositivo de detección: {device}", flush=True)
     if model.names != {0: "contenedor", 1: "residuos"}:
         raise ValueError(f"Mapa de clases inesperado: {model.names!r}")
     run_dir = settings.runs_root / run_id
@@ -106,7 +109,7 @@ def run_detection(settings: Settings, storage: Storage, manifest_path: Path, run
     for number, item in enumerate(manifest, 1):
         with Image.open(io.BytesIO(storage.read_bytes(item["path"]))) as source:
             image = ImageOps.exif_transpose(source).convert("RGB")
-        prediction = model.predict(image, conf=PREDICT_CONFIDENCE, iou=IOU, max_det=MAX_DETECTIONS, device="cpu", verbose=False)[0]
+        prediction = model.predict(image, conf=PREDICT_CONFIDENCE, iou=IOU, max_det=MAX_DETECTIONS, device=device, verbose=False)[0]
         result, crop = analyze_prediction(image, prediction)
         crop_path = None
         if crop is not None:
@@ -122,7 +125,7 @@ def run_detection(settings: Settings, storage: Storage, manifest_path: Path, run
         "created_at": datetime.now(timezone.utc).isoformat(),
         "app_env": settings.app_env,
         "model": {"path": run_model.relative_to(run_dir).as_posix(), "filename": model_path.name, "sha256": sha256(model_path), "classes": model.names},
-        "parameters": {"predict_confidence": PREDICT_CONFIDENCE, "waste_confidence": WASTE_CONFIDENCE, "container_confidence": CONTAINER_CONFIDENCE, "iou": IOU, "max_detections": MAX_DETECTIONS, "device": "cpu"},
+        "parameters": {"predict_confidence": PREDICT_CONFIDENCE, "waste_confidence": WASTE_CONFIDENCE, "container_confidence": CONTAINER_CONFIDENCE, "iou": IOU, "max_detections": MAX_DETECTIONS, "requested_device": settings.device, "device": device},
         "counts": {status: sum(row["status"] == status for row in detections) for status in ("agrupable", "sin_residuos", "sin_contenedor")},
     }
     (run_dir / "run.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
