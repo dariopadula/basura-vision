@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path, PurePosixPath
 from typing import BinaryIO, Iterable, Protocol
@@ -123,9 +124,68 @@ def photo_storage(settings: Settings, client=None) -> Storage:
     return S3Storage(client, settings.s3_bucket or "", settings.s3_prefix)
 
 
-def upload_run(storage: Storage, run_dir: Path, run_key: str) -> list[str]:
+CANONICAL_RUN_FILES = {
+    "run.json",
+    "manifest.jsonl",
+    "detections.jsonl",
+    "embeddings.npy",
+    "embedding_index.jsonl",
+    "embeddings.json",
+    "assignments.jsonl",
+    "clustering.json",
+}
+
+
+def _run_file(run_dir: Path, relative: str) -> Path:
+    relative_path = PurePosixPath(safe_key(relative))
+    path = (run_dir / Path(*relative_path.parts)).resolve()
+    root = run_dir.resolve()
+    if not path.is_relative_to(root):
+        raise ValueError(f"Artefacto fuera de la corrida: {relative!r}")
+    if not path.is_file():
+        raise FileNotFoundError(f"Falta el artefacto canónico {relative}")
+    return path
+
+
+def canonical_run_files(run_dir: Path) -> list[Path]:
+    """Return the final pipeline artifacts, excluding diagnostic variants."""
+    run_path = _run_file(run_dir, "run.json")
+    run = json.loads(run_path.read_text(encoding="utf-8"))
+    if run.get("state") != "completed":
+        raise ValueError("La corrida debe estar completada antes de respaldarla")
+
+    files = {_run_file(run_dir, relative) for relative in CANONICAL_RUN_FILES}
+    model_path = run.get("model", {}).get("path")
+    if not model_path:
+        raise ValueError("run.json no declara model.path")
+    files.add(_run_file(run_dir, model_path))
+
+    detections_path = _run_file(run_dir, "detections.jsonl")
+    for number, raw in enumerate(detections_path.read_text(encoding="utf-8").splitlines(), 1):
+        if not raw.strip():
+            continue
+        try:
+            detection = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{detections_path}:{number}: JSON inválido") from exc
+        crop_path = detection.get("crop_path")
+        if crop_path:
+            files.add(_run_file(run_dir, crop_path))
+
+    return sorted(files, key=lambda path: path.relative_to(run_dir).as_posix())
+
+
+def upload_run(
+    storage: Storage,
+    run_dir: Path,
+    run_key: str,
+    sources: Iterable[Path] | None = None,
+) -> list[str]:
     uploaded = []
-    for source in sorted(path for path in run_dir.rglob("*") if path.is_file()):
+    selected = sources if sources is not None else (
+        path for path in run_dir.rglob("*") if path.is_file()
+    )
+    for source in sorted(selected, key=lambda path: path.relative_to(run_dir).as_posix()):
         uploaded.append(storage.upload_file(source, join_key(run_key, source.relative_to(run_dir).as_posix())))
     return uploaded
 

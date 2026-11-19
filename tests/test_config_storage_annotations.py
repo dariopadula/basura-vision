@@ -16,7 +16,13 @@ from basura_vision.compute import resolve_device
 from basura_vision.config import ConfigError, load_settings
 from basura_vision.detection import _resume_index
 from basura_vision.manifests import read_jsonl, write_jsonl
-from basura_vision.storage import S3Storage, LocalStorage, download_run, upload_run
+from basura_vision.storage import (
+    S3Storage,
+    LocalStorage,
+    canonical_run_files,
+    download_run,
+    upload_run,
+)
 from basura_vision.training import yolo_label
 from scripts.run_viewer_cloudera import assigned_port
 
@@ -96,6 +102,70 @@ class CoreTests(unittest.TestCase):
             restored = base / "restored"; download_run(storage, "runs/r1", restored)
             self.assertEqual((restored / "run.json").read_text(encoding="utf-8"), "{}")
             self.assertFalse((restored / "unrelated.json").exists())
+
+    def test_canonical_run_excludes_diagnostic_variants(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            (run_dir / "model").mkdir()
+            (run_dir / "crops").mkdir()
+            (run_dir / "run.json").write_text(
+                json.dumps({"state": "completed", "model": {"path": "model/best.pt"}}),
+                encoding="utf-8",
+            )
+            (run_dir / "detections.jsonl").write_text(
+                json.dumps({"id": "a", "crop_path": "crops/a.jpg"}) + "\n",
+                encoding="utf-8",
+            )
+            for relative in {
+                "manifest.jsonl",
+                "embeddings.npy",
+                "embedding_index.jsonl",
+                "embeddings.json",
+                "assignments.jsonl",
+                "clustering.json",
+                "model/best.pt",
+                "crops/a.jpg",
+            }:
+                path = run_dir / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"data")
+            (run_dir / "assignments_gpu.jsonl").write_bytes(b"diagnostic")
+
+            selected = {
+                path.relative_to(run_dir).as_posix()
+                for path in canonical_run_files(run_dir)
+            }
+
+            self.assertEqual(
+                selected,
+                {
+                    "run.json",
+                    "manifest.jsonl",
+                    "detections.jsonl",
+                    "embeddings.npy",
+                    "embedding_index.jsonl",
+                    "embeddings.json",
+                    "assignments.jsonl",
+                    "clustering.json",
+                    "model/best.pt",
+                    "crops/a.jpg",
+                },
+            )
+            self.assertNotIn("assignments_gpu.jsonl", selected)
+
+    def test_canonical_upload_dry_run_does_not_open_storage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "runs" / "r1"
+            run_dir.mkdir(parents=True)
+            settings = SimpleNamespace(runs_root=run_dir.parent)
+            with (
+                patch("basura_vision.cli.load_settings", return_value=settings),
+                patch("basura_vision.cli.canonical_run_files", return_value=[run_dir / "run.json"]),
+                patch("basura_vision.cli.photo_storage", side_effect=AssertionError("no debe abrir S3")),
+                patch("builtins.print") as output,
+            ):
+                main(["upload-run", "--run-id", "r1", "--canonical", "--dry-run"])
+            output.assert_any_call("Archivos seleccionados: 1")
 
     def test_annotation_roundtrip(self):
         with tempfile.TemporaryDirectory() as directory:

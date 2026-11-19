@@ -6,6 +6,18 @@ La implementación usa `cml.data_v1.get_connection(BV_S3_CONNECTION).get_base_co
 
 Las rutas del manifiesto son keys relativas a `BV_S3_PREFIX`. El detector materializa el peso en `BV_TEMP_ROOT`; los originales se leen objeto a objeto. `upload-run` guarda manifiesto, copia del modelo, metadatos, detecciones, recortes, embeddings y asignaciones bajo una key de corrida común. `download-run` restaura esos artefactos para abrirlos en el visor sin ejecutar YOLO.
 
+Cuando una corrida conserva variantes diagnósticas, revisar primero el inventario final sin abrir S3:
+
+```bash
+python3 -m basura_vision.cli upload-run \
+  --run-id reference_3000_gpu \
+  --destination runs/reference_3000_gpu \
+  --canonical \
+  --dry-run
+```
+
+`--canonical` selecciona los ocho archivos finales del pipeline, el modelo declarado por `run.json` y solo los recortes referenciados por las detecciones. Después de comprobar el conteo, repetir sin `--dry-run` para publicar exactamente esa selección. La opción no elimina ni modifica los diagnósticos locales.
+
 Detección escribe cada resultado inmediatamente y actualiza `run.json` cada 25 fotos. Repetir el comando con el mismo manifiesto, modelo, dispositivo y `run-id` retoma el prefijo completo; combinaciones incompatibles se rechazan. Un objeto S3 ausente o una imagen ilegible se registra como `error_entrada` y el lote continúa, permitiendo revisar o recuperar esos originales por separado.
 
 La validación amplia en CML usó Python 3.10.20, torch/torchvision 2.14.1/0.29.1, scikit-learn 1.7.2 y ultralytics 8.4.208. La rueda `torch-2.14.1+cu130` reconoció una Tesla T4 de 15 GiB. YOLO reprodujo sin diferencias las 30 referencias y luego generó 3.000 registros: 2.323 agrupables, 619 sin residuos, 57 sin contenedor y un `error_entrada` por un objeto S3 ausente. ResNet18 produjo 2.380 embeddings; CPU y GPU dieron ARI 1,0 entre sí. GPU tardó 55 segundos y 4 vCPU, 2 minutos 8 segundos. PCA-30/K-means-15 terminó en unos cuatro segundos sobre CPU.

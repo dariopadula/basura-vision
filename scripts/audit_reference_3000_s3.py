@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from basura_vision.config import load_settings
-from basura_vision.storage import photo_storage
+from basura_vision.storage import canonical_run_files, photo_storage
 
 
 EXPECTED_STATUSES = {
@@ -81,8 +81,17 @@ def main() -> int:
 
     local_dir = settings.runs_root / args.run_id
     local_inventory = []
+    ignored_local = []
     if local_dir.is_dir():
-        for path in sorted(item for item in local_dir.rglob("*") if item.is_file()):
+        all_local = sorted(item for item in local_dir.rglob("*") if item.is_file())
+        canonical_local = canonical_run_files(local_dir)
+        canonical_set = set(canonical_local)
+        ignored_local = [
+            path.relative_to(local_dir).as_posix()
+            for path in all_local
+            if path not in canonical_set
+        ]
+        for path in canonical_local:
             local_inventory.append(
                 {
                     "path": path.relative_to(local_dir).as_posix(),
@@ -113,6 +122,7 @@ def main() -> int:
         "local_dir": str(local_dir),
         "remote_object_count": len(remote_inventory),
         "local_file_count": len(local_inventory),
+        "ignored_local_diagnostics": ignored_local,
         "required_missing_remote": sorted(REQUIRED_FILES - remote_by_path.keys()),
         "unexpected_remote": sorted(remote_by_path.keys() - allowed),
         "missing_remote_vs_local": sorted(local_by_path.keys() - remote_by_path.keys()),

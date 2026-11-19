@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from pathlib import Path
 
 from .config import ROOT, load_settings
-from .storage import download_run, photo_storage, upload_run
+from .storage import canonical_run_files, download_run, photo_storage, upload_run
 
 
 def positive_integer(value: str) -> int:
@@ -22,7 +23,7 @@ def main(argv=None):
     group = commands.add_parser("cluster"); group.add_argument("--run-id", required=True); group.add_argument("--clusters", type=positive_integer, default=15); group.add_argument("--pca-components", type=positive_integer, default=30)
     viewer = commands.add_parser("viewer"); viewer.add_argument("--run-id", required=True); viewer.add_argument("--no-browser", action="store_true")
     annotator = commands.add_parser("annotator"); annotator.add_argument("--manifest", type=Path, required=True); annotator.add_argument("--no-browser", action="store_true")
-    sync = commands.add_parser("upload-run"); sync.add_argument("--run-id", required=True); sync.add_argument("--destination")
+    sync = commands.add_parser("upload-run"); sync.add_argument("--run-id", required=True); sync.add_argument("--destination"); sync.add_argument("--canonical", action="store_true"); sync.add_argument("--dry-run", action="store_true")
     download = commands.add_parser("download-run"); download.add_argument("--run-id", required=True); download.add_argument("--source")
     prepare = commands.add_parser("prepare-dataset"); prepare.add_argument("--version", required=True); prepare.add_argument("--output", type=Path, default=ROOT / "training_data")
     training = commands.add_parser("train"); training.add_argument("--dataset", type=Path, required=True); training.add_argument("--initial-weight", type=Path, required=True); training.add_argument("--output", type=Path, required=True); training.add_argument("--epochs", type=int, default=50)
@@ -49,8 +50,30 @@ def main(argv=None):
         storage = photo_storage(settings)
         serve_annotator(settings, storage, args.manifest.resolve(), not args.no_browser)
     elif args.command == "upload-run":
-        storage = photo_storage(settings)
-        print("\n".join(upload_run(storage, settings.runs_root / args.run_id, args.destination or f"runs/{args.run_id}")))
+        run_dir = settings.runs_root / args.run_id
+        sources = canonical_run_files(run_dir) if args.canonical else sorted(
+            path for path in run_dir.rglob("*") if path.is_file()
+        )
+        if args.dry_run:
+            locations = Counter(
+                relative.parts[0] if len(relative.parts) > 1 else "[raiz]"
+                for path in sources
+                for relative in [path.relative_to(run_dir)]
+            )
+            root_files = sorted(
+                path.name for path in sources if path.parent == run_dir
+            )
+            print(f"Archivos seleccionados: {len(sources)}")
+            print(f"Por ubicación: {dict(sorted(locations.items()))}")
+            print(f"Archivos raíz: {root_files}")
+        else:
+            storage = photo_storage(settings)
+            print("\n".join(upload_run(
+                storage,
+                run_dir,
+                args.destination or f"runs/{args.run_id}",
+                sources,
+            )))
     elif args.command == "download-run":
         storage = photo_storage(settings)
         print("\n".join(str(path) for path in download_run(storage, args.source or f"runs/{args.run_id}", settings.runs_root / args.run_id)))
