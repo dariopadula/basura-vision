@@ -146,15 +146,19 @@ class CoreTests(unittest.TestCase):
             pca_components=10,
         )
 
-    def test_embed_cli_does_not_open_storage(self):
+    def test_embed_cli_uses_configured_storage(self):
         settings = SimpleNamespace(runs_root=Path("runs"), device="auto")
+        storage = object()
         with (
             patch("basura_vision.cli.load_settings", return_value=settings),
-            patch("basura_vision.cli.photo_storage", side_effect=AssertionError("embed no debe abrir S3")),
+            patch("basura_vision.cli.photo_storage", return_value=storage) as photo_storage,
             patch("basura_vision.clustering.extract_embeddings") as extract_embeddings,
         ):
             main(["embed", "--run-id", "reference_30_smoke"])
-        extract_embeddings.assert_called_once_with(Path("runs/reference_30_smoke"), "auto")
+        photo_storage.assert_called_once_with(settings)
+        extract_embeddings.assert_called_once_with(
+            Path("runs/reference_30_smoke"), storage, "auto"
+        )
 
     def test_cluster_reads_embedding_index_without_photo_path(self):
         with tempfile.TemporaryDirectory() as directory:

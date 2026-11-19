@@ -35,7 +35,7 @@ La primera extracción puede descargar los pesos ImageNet de ResNet18. El result
 
 Validación realizada en CML el 2026-11-17: ResNet18 produjo una matriz 22 × 512; PCA-10/K-means-3 generó 22 asignaciones —grupos de 12, 2 y 1 casos, más siete `sin_contenedor`— y el visor mostró los grupos, originales y recortes. La distribución no se interpreta como calidad porque solo hay 15 casos agrupables.
 
-Una vez descargada la corrida, `embed` y `cluster` trabajan únicamente con sus archivos locales y no abren la conexión S3. Esto permite continuar aunque la API de conexiones de CML esté temporalmente indisponible. Los comandos que leen o escriben objetos —detección, descarga, subida, visor, anotador y preparación del dataset— sí inicializan el almacenamiento configurado.
+`embed` vuelve a leer los originales mediante el almacenamiento configurado y los recorta con las coordenadas guardadas por detección. Esto evita usar los JPEG con pérdida destinados al visor y reproduce los embeddings históricos calculados directamente sobre píxeles originales. Una vez generado `embeddings.npy`, `cluster` trabaja únicamente con archivos locales y puede repetirse sin conexión S3. Los comandos que leen o escriben objetos —detección, embeddings, descarga, subida, visor, anotador y preparación del dataset— inicializan el almacenamiento configurado.
 
 ## Git
 

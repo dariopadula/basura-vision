@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import normalize
 
 from .compute import resolve_device
 from .manifests import read_jsonl, write_jsonl
+from .storage import Storage
 
 
-def extract_embeddings(run_dir: Path, requested_device: str = "auto") -> Path:
+def extract_embeddings(
+    run_dir: Path,
+    storage: Storage,
+    requested_device: str = "auto",
+) -> Path:
     import torch
     from torchvision.models import ResNet18_Weights, resnet18
 
@@ -29,11 +35,13 @@ def extract_embeddings(run_dir: Path, requested_device: str = "auto") -> Path:
     rows, vectors = [], []
     with torch.inference_mode():
         for row in detections:
-            if not row.get("crop_path"):
+            if not row.get("crop_box"):
                 continue
-            with Image.open(run_dir / row["crop_path"]) as image:
-                tensor = transform(image.convert("RGB")).unsqueeze(0).to(device)
-                vector = network(tensor)[0].detach().cpu().numpy()
+            with Image.open(io.BytesIO(storage.read_bytes(row["path"]))) as source:
+                image = ImageOps.exif_transpose(source).convert("RGB")
+            crop = image.crop(tuple(row["crop_box"]))
+            tensor = transform(crop).unsqueeze(0).to(device)
+            vector = network(tensor)[0].detach().cpu().numpy()
             rows.append({"id": row["id"], "ratio": row["ratio"], "status": row["status"]})
             vectors.append(vector)
     np.save(run_dir / "embeddings.npy", np.asarray(vectors, dtype=np.float32))
@@ -43,6 +51,7 @@ def extract_embeddings(run_dir: Path, requested_device: str = "auto") -> Path:
             {
                 "model": "resnet18",
                 "weights": "ResNet18_Weights.DEFAULT",
+                "source": "original_crop_box",
                 "requested_device": requested_device,
                 "device": device_name,
                 "count": len(rows),
