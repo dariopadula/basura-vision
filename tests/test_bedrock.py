@@ -6,7 +6,13 @@ from types import SimpleNamespace
 
 from PIL import Image
 
-from basura_vision.bedrock import CATEGORIES, label_batch, label_one_photo
+from basura_vision.bedrock import (
+    CATEGORIES,
+    label_batch,
+    label_one_photo,
+    prepare_label_run,
+    restore_label_run,
+)
 from basura_vision.manifests import write_jsonl
 from basura_vision.storage import LocalStorage
 
@@ -39,7 +45,53 @@ class FakeBedrockClient:
         }
 
 
+class InterruptingBedrockClient(FakeBedrockClient):
+    def converse(self, **request):
+        self.request_count += 1
+        raise KeyboardInterrupt("interrupción simulada")
+
+
 class BedrockTests(unittest.TestCase):
+    def test_prepare_selection_excludes_input_errors_without_invoking(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "runs" / "reference"
+            run_dir.mkdir(parents=True)
+            manifest = [
+                {"id": "ok_1", "path": "ok_1.jpg"},
+                {"id": "missing", "path": "missing.jpg"},
+                {"id": "ok_2", "path": "ok_2.jpg"},
+            ]
+            detections = [
+                {"id": "ok_1", "path": "ok_1.jpg", "status": "agrupable"},
+                {
+                    "id": "missing",
+                    "path": "missing.jpg",
+                    "status": "error_entrada",
+                    "reason": "NoSuchKey",
+                },
+                {"id": "ok_2", "path": "ok_2.jpg", "status": "sin_residuos"},
+            ]
+            write_jsonl(run_dir / "manifest.jsonl", manifest)
+            write_jsonl(run_dir / "detections.jsonl", detections)
+            settings = SimpleNamespace(runs_root=root / "runs")
+
+            label_dir = prepare_label_run(
+                settings,
+                "reference",
+                "prepared",
+                "amazon.nova-lite-v1:0",
+                "us-east-1",
+            )
+
+            selection = (label_dir / "selection.jsonl").read_text(encoding="utf-8").splitlines()
+            exclusions = (label_dir / "exclusions.jsonl").read_text(encoding="utf-8").splitlines()
+            run = json.loads((label_dir / "run.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(selection), 2)
+            self.assertEqual(len(exclusions), 1)
+            self.assertEqual(json.loads(exclusions[0])["id"], "missing")
+            self.assertEqual((run["selected"], run["excluded"], run["status"]), (2, 1, "prepared"))
+
     def test_labels_one_original_and_saves_validated_record(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -171,6 +223,139 @@ class BedrockTests(unittest.TestCase):
             self.assertEqual(run["total_tokens"], 150)
             self.assertEqual(run["estimated_total_cost"], "0.000018000000")
             self.assertFalse((label_dir / "results.jsonl").exists())
+
+            label_batch(
+                settings,
+                LocalStorage(photos),
+                "reference",
+                "invalid_response",
+                "amazon.nova-lite-v1:0",
+                client=client,
+                max_attempts_per_photo=2,
+            )
+            label_batch(
+                settings,
+                LocalStorage(photos),
+                "reference",
+                "invalid_response",
+                "amazon.nova-lite-v1:0",
+                client=client,
+                max_attempts_per_photo=2,
+            )
+            self.assertEqual(client.request_count, 2)
+            self.assertEqual(
+                len((label_dir / "invocations.jsonl").read_text(encoding="utf-8").splitlines()),
+                2,
+            )
+
+    def test_confirmed_result_restores_and_is_not_invoked_again(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            object_store = root / "objects"
+            object_store.mkdir()
+            Image.new("RGB", (20, 10), "white").save(object_store / "one.jpg")
+            runs = root / "runs"
+            run_dir = runs / "reference"
+            run_dir.mkdir(parents=True)
+            manifest = [{"id": "photo_1", "path": "one.jpg"}]
+            detections = [{"id": "photo_1", "path": "one.jpg", "status": "sin_residuos"}]
+            write_jsonl(run_dir / "manifest.jsonl", manifest)
+            write_jsonl(run_dir / "detections.jsonl", detections)
+            settings = SimpleNamespace(runs_root=runs)
+            labels = {
+                category: {"presente": False, "severidad": None}
+                for category in CATEGORIES
+            }
+            client = FakeBedrockClient(labels)
+            prepare_label_run(
+                settings,
+                "reference",
+                "confirmed",
+                "amazon.nova-lite-v1:0",
+                "us-east-1",
+                max_estimated_cost_usd="1",
+                approved=True,
+            )
+            storage = LocalStorage(object_store)
+            label_batch(
+                settings,
+                storage,
+                "reference",
+                "confirmed",
+                "amazon.nova-lite-v1:0",
+                client=client,
+                upload_destination="runs/reference/bedrock/confirmed",
+                require_approval=True,
+            )
+            self.assertEqual(client.request_count, 1)
+
+            restored_runs = root / "restored_runs"
+            restored_run = restored_runs / "reference"
+            restored_run.mkdir(parents=True)
+            write_jsonl(restored_run / "manifest.jsonl", manifest)
+            write_jsonl(restored_run / "detections.jsonl", detections)
+            restored_label = restored_run / "bedrock" / "confirmed"
+            restore_label_run(
+                storage,
+                "runs/reference/bedrock/confirmed",
+                restored_label,
+            )
+            resumed_client = FakeBedrockClient(labels)
+            label_batch(
+                SimpleNamespace(runs_root=restored_runs),
+                storage,
+                "reference",
+                "confirmed",
+                "amazon.nova-lite-v1:0",
+                client=resumed_client,
+                require_approval=True,
+            )
+            self.assertEqual(resumed_client.request_count, 0)
+
+    def test_interrupted_invocation_is_restored_as_uncertain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            object_store = root / "objects"
+            object_store.mkdir()
+            Image.new("RGB", (20, 10), "white").save(object_store / "one.jpg")
+            run_dir = root / "runs" / "reference"
+            run_dir.mkdir(parents=True)
+            manifest = [{"id": "photo_1", "path": "one.jpg"}]
+            detections = [{"id": "photo_1", "path": "one.jpg", "status": "sin_residuos"}]
+            write_jsonl(run_dir / "manifest.jsonl", manifest)
+            write_jsonl(run_dir / "detections.jsonl", detections)
+            settings = SimpleNamespace(runs_root=root / "runs")
+            prepare_label_run(
+                settings,
+                "reference",
+                "interrupted",
+                "amazon.nova-lite-v1:0",
+                "us-east-1",
+                max_estimated_cost_usd="1",
+                approved=True,
+            )
+            storage = LocalStorage(object_store)
+            with self.assertRaises(KeyboardInterrupt):
+                label_batch(
+                    settings,
+                    storage,
+                    "reference",
+                    "interrupted",
+                    "amazon.nova-lite-v1:0",
+                    client=InterruptingBedrockClient({}),
+                    upload_destination="runs/reference/bedrock/interrupted",
+                    require_approval=True,
+                )
+
+            restored = root / "uncertain_restore"
+            with self.assertRaisesRegex(RuntimeError, "inciertos"):
+                restore_label_run(
+                    storage,
+                    "runs/reference/bedrock/interrupted",
+                    restored,
+                )
+            uncertain = (restored / "uncertain_attempts.jsonl").read_text(encoding="utf-8")
+            self.assertIn("photo_1", uncertain)
 
 if __name__ == "__main__":
     unittest.main()

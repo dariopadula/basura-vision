@@ -78,16 +78,27 @@ La salida incluye el JSON validado, ID y ruta de foto, fuente `original`, modelo
 
 Validación real realizada en CML el 2026-11-17 sobre `180072_3848356_6204427`: Nova Lite devolvió y el sistema guardó las seis categorías; consumió 2.754 tokens de entrada y 175 de salida, informó 1.433 ms y `end_turn`. La revisión visual considera plausibles basura fuera, residuos esparcidos y poda; `voluminoso=false` también es razonable. Las severidades `severo` para contenedor desbordado y roto no están claramente sustentadas por la imagen y requieren calibración. `bedrock-one` reemplaza el archivo del mismo ID; el lote separado conserva su selección y reanuda sin repetir resultados completos.
 
-La prueba de lote quedó implementada, pero todavía no ejecutada contra Bedrock real:
+Preparar el universo completo sin invocar Bedrock:
 
 ```bash
-python3 -m basura_vision.cli bedrock-batch \
-  --run-id reference_30_smoke \
-  --label-run-id nova_lite__bedrock_labels_v1__reference30 \
-  --checkpoint-every 5
+python3 -m basura_vision.cli bedrock-prepare \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__reference2999 \
+  --region us-east-1
 ```
 
-La corrida usa las 30 fotos originales y una selección congelada. Cada resultado válido se agrega a `results.jsonl` y cada intento a `invocations.jsonl`; una repetición omite IDs completos. `pricing.json` conserva la consulta, la tarifa aplicable, la fuente oficial, la fecha de comprobación y el hash de `config/pricing.csv`. La tarifa verificada el 2026-11-19 para Nova Lite, invocación directa Standard on-demand en `us-east-1`, es USD 0,06 por millón de tokens de entrada y USD 0,24 por millón de salida.
+Este comando crea `selection.jsonl`, `exclusions.jsonl`, `prompt.txt`, `pricing.json` y `run.json`. No construye el cliente S3 ni el cliente Bedrock. En la referencia amplia debe seleccionar 2.999 IDs y excluir únicamente `176073_3029927_5189472` por `error_entrada`. `pricing.json` conserva la consulta, la tarifa aplicable, la fuente oficial, la fecha de comprobación y el hash de `config/pricing.csv`. La tarifa verificada el 2026-11-19 para Nova Lite, invocación directa Standard on-demand en `us-east-1`, es USD 0,06 por millón de tokens de entrada y USD 0,24 por millón de salida.
 
-Los tokens y costos estimados de entrada/salida se registran antes de validar el JSON, por lo que una respuesta inválida también queda contabilizada. Los intentos sin métricas conservan costo desconocido. `run.json` y `cluster_summary.json` acumulan todos los intentos, incluidos inválidos y reintentos, y diferencian explícitamente la estimación de la factura de AWS. Cada cinco intentos se sube el directorio a `runs/reference_30_smoke/bedrock/<label-run-id>` dentro del prefijo S3 configurado. El modelo, hash de prompt y hash de tarifa no pueden cambiar dentro del mismo `label-run-id`.
+Antes de ejecutar, repetir `bedrock-prepare` con `--max-cost-usd <tope>` y `--approve-execution`. `bedrock-batch` requiere `--execute-approved`, confirma en S3 el marcador previo y el resultado de cada intento antes de avanzar, limita por defecto a tres intentos por foto y detiene la ejecución ante persistencia fallida, costo desconocido, tope alcanzado o configuración incompatible. Los tokens y costos estimados se capturan antes de validar el JSON. Un intento iniciado sin confirmación queda en `uncertain_attempts.jsonl` y no se repite automáticamente.
+
+Restaurar una corrida de etiquetas en un directorio limpio:
+
+```bash
+python3 -m basura_vision.cli bedrock-restore \
+  --run-id reference_3000_s3_restore \
+  --label-run-id <label_run_id> \
+  --source runs/reference_3000_gpu/bedrock/<label_run_id>
+```
+
+La restauración valida el inventario del checkpoint, reconstruye los JSONL desde confirmaciones posteriores y rechaza intentos inciertos. Las pruebas simuladas comprueban que una foto confirmada no vuelve a invocarse después de restaurar y que una interrupción entre marcador y confirmación se conserva como incierta.
 

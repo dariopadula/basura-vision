@@ -64,18 +64,18 @@ python3 -m basura_vision.cli bedrock-one \
 
 El comando no procesa el resto del lote. Corrige la orientación, normaliza la imagen a JPEG, exige el JSON de seis categorías y guarda el resultado bajo `runs/<run-id>/bedrock/`, junto con modelo, región, versión y hash del prompt, uso y latencia informados por Bedrock. Los resultados y credenciales permanecen fuera de Git. El prompt versionado está en `prompts/bedrock_labels_v1.txt`.
 
-Después de validar una foto, el lote completo se ejecuta con una identidad propia:
+Preparar una identidad de lote no invoca Bedrock ni abre S3:
 
 ```bash
-python3 -m basura_vision.cli bedrock-batch \
-  --run-id reference_30_smoke \
-  --label-run-id nova_lite__bedrock_labels_v1__reference30 \
-  --checkpoint-every 5
+python3 -m basura_vision.cli bedrock-prepare \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__reference2999 \
+  --region us-east-1
 ```
 
-Procesa las 30 fotos originales del manifiesto. Mantiene localmente `run.json`, `prompt.txt`, `selection.jsonl`, `pricing.json`, `invocations.jsonl`, `results.jsonl`, `errors.jsonl` cuando corresponda y `cluster_summary.json`. `pricing.json` congela la fila aplicable de `config/pricing.csv`, su fuente y el hash del catálogo. Cada intento conserva por separado tokens y costo estimado de entrada/salida, latencia, ID de solicitud, motivo de salida y error; una respuesta inválida sigue contabilizando su consumo. Los costos son estimaciones basadas en las métricas del modelo y no sustituyen la facturación de AWS.
+La preparación cruza manifiesto, detecciones y asignaciones, congela los originales accesibles en `selection.jsonl` y registra los `error_entrada` en `exclusions.jsonl`. También conserva `run.json`, `prompt.txt` y `pricing.json`. Para autorizar una ejecución se repite la preparación con el mismo ID, el tope aprobado y `--approve-execution`. El comando `bedrock-batch` exige además `--execute-approved`; sin ambos controles no llama al modelo.
 
-En CML con almacenamiento S3, el lote sube automáticamente un checkpoint cada cinco intentos y la versión final bajo `runs/reference_30_smoke/bedrock/<label-run-id>`. Una repetición con el mismo ID omite fotos completadas; un modelo, prompt o tarifa congelada incompatible se rechaza para evitar mezclar corridas. `--no-upload` deja la ejecución solo local.
+Cada intento crea un marcador previo y una confirmación inmutable. Solo avanza después de verificar la confirmación en S3. `invocations.jsonl`, `results.jsonl` y `errors.jsonl` se regeneran desde esas confirmaciones; una restauración aplica las posteriores al último checkpoint. Una repetición omite resultados válidos, limita reintentos y detiene los intentos inciertos para revisión. Un bloqueo local impide dos escritores simultáneos. El modelo, región, selección, exclusiones, prompt, tarifa y tope deben coincidir con el control aprobado.
 
 ## Reentrenamiento
 

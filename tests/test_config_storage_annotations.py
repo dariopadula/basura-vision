@@ -237,6 +237,34 @@ class CoreTests(unittest.TestCase):
             Path("runs/reference_30_smoke"), storage, "auto"
         )
 
+    def test_bedrock_prepare_does_not_open_storage_or_client(self):
+        settings = SimpleNamespace(
+            runs_root=Path("runs"),
+            bedrock_model_id="amazon.nova-lite-v1:0",
+            bedrock_region=None,
+        )
+        with (
+            patch("basura_vision.cli.load_settings", return_value=settings),
+            patch("basura_vision.cli.photo_storage", side_effect=AssertionError("no debe abrir S3")),
+            patch("basura_vision.bedrock.prepare_label_run", return_value=Path("prepared")) as prepare,
+            patch("builtins.print"),
+        ):
+            main([
+                "bedrock-prepare",
+                "--run-id", "reference",
+                "--label-run-id", "pilot",
+                "--region", "us-east-1",
+            ])
+        prepare.assert_called_once_with(
+            settings,
+            "reference",
+            "pilot",
+            "amazon.nova-lite-v1:0",
+            "us-east-1",
+            max_estimated_cost_usd=None,
+            approved=False,
+        )
+
     def test_cluster_reads_embedding_index_without_photo_path(self):
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
