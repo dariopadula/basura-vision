@@ -61,7 +61,10 @@ def cluster_run(run_dir: Path, clusters: int = 15, pca_components: int = 30) -> 
         run_dir / "embedding_index.jsonl",
         required_fields={"id", "ratio", "status"},
     )
-    vectors = np.load(run_dir / "embeddings.npy")
+    # La corrida histórica convertía las listas de PyTorch mediante np.array,
+    # lo que producía float64. Mantener esa precisión antes de PCA evita que
+    # pequeñas diferencias numéricas cambien las inicializaciones de K-means.
+    vectors = np.asarray(np.load(run_dir / "embeddings.npy"), dtype=np.float64)
     valid = np.asarray([row["ratio"] is not None for row in rows])
     if valid.sum() < max(clusters, pca_components + 1):
         raise ValueError(f"Se requieren al menos {max(clusters, pca_components + 1)} casos agrupables; hay {valid.sum()}")
@@ -77,6 +80,6 @@ def cluster_run(run_dir: Path, clusters: int = 15, pca_components: int = 30) -> 
         cluster = int(next(label_iter)) + 1 if row["ratio"] is not None else "sin_contenedor"
         assignments.append({"id": row["id"], "cluster": cluster, "pc1": float(pc1), "pc2": float(pc2), "ratio": row["ratio"]})
     write_jsonl(run_dir / "assignments.jsonl", assignments)
-    (run_dir / "clustering.json").write_text(json.dumps({"pca_components": pca_components, "clusters": clusters, "ratio_weight": 0.5, "random_state": 42, "kmeans_n_init": 30}, indent=2) + "\n", encoding="utf-8")
+    (run_dir / "clustering.json").write_text(json.dumps({"pca_components": pca_components, "clusters": clusters, "ratio_weight": 0.5, "random_state": 42, "kmeans_n_init": 30, "numeric_dtype": "float64"}, indent=2) + "\n", encoding="utf-8")
     return run_dir / "assignments.jsonl"
 

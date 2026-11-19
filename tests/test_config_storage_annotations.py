@@ -177,6 +177,7 @@ class CoreTests(unittest.TestCase):
             self.assertEqual({row["cluster"] for row in assignments}, {1, 2, 3})
             parameters = json.loads((run_dir / "clustering.json").read_text(encoding="utf-8"))
             self.assertEqual((parameters["pca_components"], parameters["clusters"]), (10, 3))
+            self.assertEqual(parameters["numeric_dtype"], "float64")
 
 
 if __name__ == "__main__":
