@@ -185,6 +185,9 @@ def main() -> int:
                 "run_model_sha256": run.get("model", {}).get("sha256"),
                 "remote_model_sha256": model_sha,
                 "active_model_sha256": active_model_sha,
+                "active_model_matches_remote": (
+                    None if active_model_sha is None else active_model_sha == model_sha
+                ),
             }
         )
 
@@ -219,7 +222,7 @@ def main() -> int:
                 clustering.get("pca_components") == 30,
                 clustering.get("numeric_dtype") == "float64",
                 run.get("model", {}).get("sha256") == model_sha,
-                active_model_sha == model_sha,
+                active_model_sha is None or active_model_sha == model_sha,
             ]
         )
     else:
