@@ -104,7 +104,7 @@ class CoreTests(unittest.TestCase):
             self.assertFalse((restored / "unrelated.json").exists())
 
     def test_canonical_run_excludes_diagnostic_variants(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             run_dir = Path(directory)
             (run_dir / "model").mkdir()
             (run_dir / "crops").mkdir()
@@ -152,6 +152,13 @@ class CoreTests(unittest.TestCase):
                 },
             )
             self.assertNotIn("assignments_gpu.jsonl", selected)
+
+            relative_run_dir = Path(os.path.relpath(run_dir, Path.cwd()))
+            selected_from_relative = {
+                path.relative_to(run_dir).as_posix()
+                for path in canonical_run_files(relative_run_dir)
+            }
+            self.assertEqual(selected_from_relative, selected)
 
     def test_canonical_upload_dry_run_does_not_open_storage(self):
         with tempfile.TemporaryDirectory() as directory:

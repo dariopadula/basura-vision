@@ -26,7 +26,7 @@ La corrida histórica calculaba ResNet18 directamente sobre el recorte en memori
 
 Para lotes grandes puede iniciarse una sesión con GPU. `BV_DEVICE=auto` selecciona `cuda:0` cuando la compilación instalada de PyTorch reconoce CUDA y mantiene CPU en Windows o en sesiones CML sin GPU. Detección guarda `requested_device` y `device` en `run.json`; embeddings hace lo mismo en `embeddings.json`. Una GPU visible en `nvidia-smi` no basta si PyTorch lleva el sufijo `+cpu`: debe instalarse la rueda CUDA compatible antes de ejecutar el lote.
 
-Para abrir las interfaces en una sesión consultar [visores en Cloudera](visores_cloudera.md). El visor se desplegó y abrió correctamente como Application con la corrida restaurada de 30. La corrida amplia debe guardarse en S3 y abrirse todavía en el visor.
+Para abrir las interfaces en una sesión consultar [visores en Cloudera](visores_cloudera.md). El visor se desplegó y abrió correctamente como Application con la corrida restaurada de 30. `reference_3000_gpu` se guardó después con 2.389 objetos canónicos, se restauró como `reference_3000_s3_restore`, coincidió por SHA-256 en todos sus archivos y se abrió correctamente en el visor de sesión.
 
 ## Prueba técnica de agrupación con las 30 fotos
 

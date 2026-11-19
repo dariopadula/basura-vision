@@ -149,6 +149,7 @@ def _run_file(run_dir: Path, relative: str) -> Path:
 
 def canonical_run_files(run_dir: Path) -> list[Path]:
     """Return the final pipeline artifacts, excluding diagnostic variants."""
+    run_dir = run_dir.resolve()
     run_path = _run_file(run_dir, "run.json")
     run = json.loads(run_path.read_text(encoding="utf-8"))
     if run.get("state") != "completed":
