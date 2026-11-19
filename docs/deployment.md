@@ -102,3 +102,26 @@ python3 -m basura_vision.cli bedrock-restore \
 
 La restauración valida el inventario del checkpoint, reconstruye los JSONL desde confirmaciones posteriores y rechaza intentos inciertos. Las pruebas simuladas comprueban que una foto confirmada no vuelve a invocarse después de restaurar y que una interrupción entre marcador y confirmación se conserva como incierta.
 
+### Congelar las muestras del piloto
+
+La tarea de calibración usa dos muestras disjuntas de la corrida restaurada.
+Su preparación es local: no inicializa el almacenamiento y no llama a Bedrock.
+
+```bash
+python3 -m basura_vision.cli bedrock-samples \
+  --run-id reference_3000_s3_restore \
+  --sample-plan-id bedrock_labels_v1__seed_20261119 \
+  --pilot-label-run-id nova_lite__bedrock_labels_v1__pilot40 \
+  --validation-label-run-id nova_lite__bedrock_labels_v1__validation34 \
+  --region us-east-1 \
+  --seed 20261119
+```
+
+El resultado queda en
+`runs/reference_3000_s3_restore/bedrock/sample_plans/bedrock_labels_v1__seed_20261119/`.
+`pilot_selection.jsonl` contiene 40 fotos y `validation_selection.jsonl`, 34.
+Los label runs correspondientes quedan preparados por separado. Ninguno crea
+`execution_control.json`, `invocations.jsonl` ni una carga S3. La semilla, los
+criterios, los conteos y los hashes de ambas selecciones quedan registrados en
+`sample_plan.json`.
+

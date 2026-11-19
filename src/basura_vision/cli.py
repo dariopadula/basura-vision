@@ -29,6 +29,7 @@ def main(argv=None):
     prepare = commands.add_parser("prepare-dataset"); prepare.add_argument("--version", required=True); prepare.add_argument("--output", type=Path, default=ROOT / "training_data")
     training = commands.add_parser("train"); training.add_argument("--dataset", type=Path, required=True); training.add_argument("--initial-weight", type=Path, required=True); training.add_argument("--output", type=Path, required=True); training.add_argument("--epochs", type=int, default=50)
     bedrock = commands.add_parser("bedrock-one"); bedrock.add_argument("--run-id", required=True); bedrock.add_argument("--photo-id", required=True); bedrock.add_argument("--model-id"); bedrock.add_argument("--region")
+    bedrock_samples = commands.add_parser("bedrock-samples"); bedrock_samples.add_argument("--run-id", required=True); bedrock_samples.add_argument("--sample-plan-id", required=True); bedrock_samples.add_argument("--pilot-label-run-id", required=True); bedrock_samples.add_argument("--validation-label-run-id", required=True); bedrock_samples.add_argument("--model-id"); bedrock_samples.add_argument("--region"); bedrock_samples.add_argument("--seed", type=int, default=20261119)
     bedrock_prepare = commands.add_parser("bedrock-prepare"); bedrock_prepare.add_argument("--run-id", required=True); bedrock_prepare.add_argument("--label-run-id", required=True); bedrock_prepare.add_argument("--model-id"); bedrock_prepare.add_argument("--region"); bedrock_prepare.add_argument("--max-cost-usd"); bedrock_prepare.add_argument("--approve-execution", action="store_true")
     batch = commands.add_parser("bedrock-batch"); batch.add_argument("--run-id", required=True); batch.add_argument("--label-run-id", required=True); batch.add_argument("--model-id"); batch.add_argument("--region"); batch.add_argument("--checkpoint-every", type=positive_integer, default=5); batch.add_argument("--max-attempts", type=positive_integer, default=3); batch.add_argument("--destination"); batch.add_argument("--no-upload", action="store_true"); batch.add_argument("--execute-approved", action="store_true")
     bedrock_restore = commands.add_parser("bedrock-restore"); bedrock_restore.add_argument("--run-id", required=True); bedrock_restore.add_argument("--label-run-id", required=True); bedrock_restore.add_argument("--source", required=True)
@@ -99,6 +100,25 @@ def main(argv=None):
             args.region or settings.bedrock_region,
         )
         print(destination)
+    elif args.command == "bedrock-samples":
+        from .pilot import prepare_pilot_samples
+        region = (
+            args.region
+            or settings.bedrock_region
+            or os.environ.get("AWS_DEFAULT_REGION")
+            or os.environ.get("AWS_REGION")
+        )
+        plan_dir = prepare_pilot_samples(
+            settings,
+            args.run_id,
+            args.sample_plan_id,
+            args.pilot_label_run_id,
+            args.validation_label_run_id,
+            args.model_id or settings.bedrock_model_id,
+            region or "",
+            seed=args.seed,
+        )
+        print(plan_dir)
     elif args.command == "bedrock-prepare":
         from .bedrock import prepare_label_run
         region = (

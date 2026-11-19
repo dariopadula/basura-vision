@@ -77,6 +77,26 @@ La preparación cruza manifiesto, detecciones y asignaciones, congela los origin
 
 Cada intento crea un marcador previo y una confirmación inmutable. Solo avanza después de verificar la confirmación en S3. `invocations.jsonl`, `results.jsonl` y `errors.jsonl` se regeneran desde esas confirmaciones; una restauración aplica las posteriores al último checkpoint. Una repetición omite resultados válidos, limita reintentos y detiene los intentos inciertos para revisión. Un bloqueo local impide dos escritores simultáneos. El modelo, región, selección, exclusiones, prompt, tarifa y tope deben coincidir con el control aprobado.
 
+Para el piloto se congelan primero dos muestras independientes, sin abrir S3 ni
+invocar Bedrock:
+
+```bash
+python3 -m basura_vision.cli bedrock-samples \
+  --run-id reference_3000_s3_restore \
+  --sample-plan-id bedrock_labels_v1__seed_20261119 \
+  --pilot-label-run-id nova_lite__bedrock_labels_v1__pilot40 \
+  --validation-label-run-id nova_lite__bedrock_labels_v1__validation34 \
+  --region us-east-1 \
+  --seed 20261119
+```
+
+El piloto contiene dos originales por clúster —uno aleatorio y uno de
+contraste— y cinco de cada grupo especial, para un total de 40. La validación
+reserva otros dos por cada uno de los 17 grupos, total 34. No se comparten IDs
+ni `event_id` entre ambas muestras. El comando es idempotente: una repetición
+acepta solamente los mismos archivos congelados. La autorización y el tope se
+agregan después de revisar el plan y antes de llamar al modelo.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:
