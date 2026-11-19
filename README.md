@@ -73,7 +73,9 @@ python3 -m basura_vision.cli bedrock-batch \
   --checkpoint-every 5
 ```
 
-Procesa las 30 fotos originales del manifiesto. Mantiene localmente `run.json`, `prompt.txt`, `selection.jsonl`, `results.jsonl`, `errors.jsonl` cuando corresponda y `cluster_summary.json`. En CML con almacenamiento S3, sube automáticamente un checkpoint cada cinco intentos y la versión final bajo `runs/reference_30_smoke/bedrock/<label-run-id>`. Una repetición con el mismo ID omite fotos completadas; un modelo o hash de prompt distinto se rechaza para evitar mezclar corridas. `--no-upload` deja la ejecución solo local.
+Procesa las 30 fotos originales del manifiesto. Mantiene localmente `run.json`, `prompt.txt`, `selection.jsonl`, `pricing.json`, `invocations.jsonl`, `results.jsonl`, `errors.jsonl` cuando corresponda y `cluster_summary.json`. `pricing.json` congela la fila aplicable de `config/pricing.csv`, su fuente y el hash del catálogo. Cada intento conserva por separado tokens y costo estimado de entrada/salida, latencia, ID de solicitud, motivo de salida y error; una respuesta inválida sigue contabilizando su consumo. Los costos son estimaciones basadas en las métricas del modelo y no sustituyen la facturación de AWS.
+
+En CML con almacenamiento S3, el lote sube automáticamente un checkpoint cada cinco intentos y la versión final bajo `runs/reference_30_smoke/bedrock/<label-run-id>`. Una repetición con el mismo ID omite fotos completadas; un modelo, prompt o tarifa congelada incompatible se rechaza para evitar mezclar corridas. `--no-upload` deja la ejecución solo local.
 
 ## Reentrenamiento
 

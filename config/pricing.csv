@@ -1,0 +1,2 @@
+provider,model_name,model_id,region,routing,service_tier,inference_mode,currency,input_usd_per_million,output_usd_per_million,effective_from,checked_at,source_url
+Amazon Web Services,Amazon Nova Lite,amazon.nova-lite-v1:0,us-east-1,direct,standard,on_demand,USD,0.06,0.24,,2026-11-19,https://aws.amazon.com/bedrock/pricing/

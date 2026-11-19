@@ -87,5 +87,7 @@ python3 -m basura_vision.cli bedrock-batch \
   --checkpoint-every 5
 ```
 
-La corrida usa las 30 fotos originales y una selección congelada. Cada resultado se agrega localmente a `results.jsonl`; una repetición omite IDs completados. Cada cinco intentos actualiza `run.json` y `cluster_summary.json` y sube el directorio a `runs/reference_30_smoke/bedrock/<label-run-id>` dentro del prefijo S3 configurado. Los errores se registran aparte y se reintentan al reanudar. El modelo o hash de prompt no pueden cambiar dentro del mismo `label-run-id`. Trece pruebas pasan, incluida una interrupción simulada mediante una segunda ejecución que no repite llamadas completadas.
+La corrida usa las 30 fotos originales y una selección congelada. Cada resultado válido se agrega a `results.jsonl` y cada intento a `invocations.jsonl`; una repetición omite IDs completos. `pricing.json` conserva la consulta, la tarifa aplicable, la fuente oficial, la fecha de comprobación y el hash de `config/pricing.csv`. La tarifa verificada el 2026-11-19 para Nova Lite, invocación directa Standard on-demand en `us-east-1`, es USD 0,06 por millón de tokens de entrada y USD 0,24 por millón de salida.
+
+Los tokens y costos estimados de entrada/salida se registran antes de validar el JSON, por lo que una respuesta inválida también queda contabilizada. Los intentos sin métricas conservan costo desconocido. `run.json` y `cluster_summary.json` acumulan todos los intentos, incluidos inválidos y reintentos, y diferencian explícitamente la estimación de la factura de AWS. Cada cinco intentos se sube el directorio a `runs/reference_30_smoke/bedrock/<label-run-id>` dentro del prefijo S3 configurado. El modelo, hash de prompt y hash de tarifa no pueden cambiar dentro del mismo `label-run-id`.
 
