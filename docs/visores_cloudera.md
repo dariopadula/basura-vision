@@ -105,6 +105,42 @@ Detener el anotador:
 kill "$(cat /tmp/basura_vision_annotator.pid)"
 ```
 
+## Revisión ciega del piloto Bedrock
+
+Esta interfaz usa `CDSW_APP_PORT` porque guarda la evaluación humana. No muestra
+las respuestas de Bedrock. Iniciarla en segundo plano:
+
+```bash
+nohup env \
+  BV_HOST=127.0.0.1 \
+  BV_VIEWER_PORT="$CDSW_APP_PORT" \
+  python3 -m basura_vision.cli bedrock-review \
+    --run-id reference_3000_s3_restore \
+    --label-run-id nova_lite__bedrock_labels_v1__pilot40 \
+    --destination runs/reference_3000_gpu/bedrock/nova_lite__bedrock_labels_v1__pilot40 \
+    --no-browser \
+  > /tmp/basura_vision_bedrock_review.log 2>&1 &
+
+echo $! > /tmp/basura_vision_bedrock_review.pid
+sleep 3
+```
+
+Comprobar que responde:
+
+```bash
+curl -s -o /dev/null \
+  -w "Respuesta local: HTTP %{http_code}\n" \
+  "http://127.0.0.1:${CDSW_APP_PORT}/"
+```
+
+Abrir **Web UI / Application**. Cada foto guardada actualiza
+`blind_reviews.json` localmente y en el destino S3 indicado. Detener la interfaz
+con:
+
+```bash
+kill "$(cat /tmp/basura_vision_bedrock_review.pid)"
+```
+
 ## Diagnóstico rápido
 
 Un número como `[1] 645` al iniciar con `&` es el PID, no un error HTTP. Las líneas `GET / ... 200` son accesos normales de Cloudera.
@@ -117,6 +153,9 @@ sed -n '1,120p' /tmp/basura_vision_viewer.log
 
 ps -p "$(cat /tmp/basura_vision_annotator.pid)" -o pid,stat,cmd
 sed -n '1,120p' /tmp/basura_vision_annotator.log
+
+ps -p "$(cat /tmp/basura_vision_bedrock_review.pid)" -o pid,stat,cmd
+sed -n '1,120p' /tmp/basura_vision_bedrock_review.log
 ```
 
 No iniciar dos visores en el mismo puerto. Si el log informa `Address already in use`, detener primero el proceso anterior. La sesión y su Web UI deben permanecer activas.

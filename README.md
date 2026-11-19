@@ -97,6 +97,23 @@ ni `event_id` entre ambas muestras. El comando es idempotente: una repetición
 acepta solamente los mismos archivos congelados. La autorización y el tope se
 agregan después de revisar el plan y antes de llamar al modelo.
 
+Después de ejecutar el piloto, la revisión humana se hace sin exponer las
+predicciones del modelo:
+
+```bash
+python3 -m basura_vision.cli bedrock-review \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__pilot40 \
+  --destination runs/reference_3000_gpu/bedrock/nova_lite__bedrock_labels_v1__pilot40 \
+  --no-browser
+```
+
+La interfaz muestra solamente el original, el grupo y el criterio de muestreo.
+Permite guardar y retomar presencia, severidad, evidencia dudosa y notas para
+las seis categorías. `blind_reviews.json` queda en el label run local y, cuando
+se indica `--destination` con almacenamiento S3, se respalda en ese prefijo tras
+cada guardado.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:

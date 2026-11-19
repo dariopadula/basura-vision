@@ -125,3 +125,20 @@ Los label runs correspondientes quedan preparados por separado. Ninguno crea
 criterios, los conteos y los hashes de ambas selecciones quedan registrados en
 `sample_plan.json`.
 
+La revisión del piloto es ciega: la API de la interfaz no entrega las salidas
+de Bedrock. El comando lee los originales desde el almacenamiento configurado y
+guarda la revisión humana por separado:
+
+```bash
+python3 -m basura_vision.cli bedrock-review \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__pilot40 \
+  --destination runs/reference_3000_gpu/bedrock/nova_lite__bedrock_labels_v1__pilot40 \
+  --no-browser
+```
+
+Con `--destination`, cada guardado actualiza
+`blind_reviews.json` dentro del mismo prefijo S3 del piloto. No invoca Bedrock.
+La comparación con `results.jsonl` se realiza solamente después de completar la
+revisión humana.
+
