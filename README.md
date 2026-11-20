@@ -114,6 +114,21 @@ las seis categorías. `blind_reviews.json` queda en el label run local y, cuando
 se indica `--destination` con almacenamiento S3, se respalda en ese prefijo tras
 cada guardado.
 
+Cuando todas las revisiones están completas, generar la comparación sin abrir
+S3 ni llamar al modelo:
+
+```bash
+python3 -m basura_vision.cli bedrock-review-report \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__pilot40
+```
+
+El comando exige cobertura exacta y crea `review_comparison.json`,
+`review_comparison.csv` y `review_comparison.md`. Reporta acuerdos de presencia,
+falsos positivos y negativos, diferencias de severidad y controles específicos
+para falsos `severo` de desborde y rotura. Las métricas concluyentes excluyen
+las decisiones humanas marcadas como dudosas.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:

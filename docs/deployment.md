@@ -142,3 +142,13 @@ Con `--destination`, cada guardado actualiza
 La comparación con `results.jsonl` se realiza solamente después de completar la
 revisión humana.
 
+```bash
+python3 -m basura_vision.cli bedrock-review-report \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__pilot40
+```
+
+Este paso es completamente local y genera un resumen Markdown, un JSON
+auditable y un CSV con una fila por foto y categoría. No modifica revisiones ni
+resultados.
+
