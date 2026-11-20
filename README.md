@@ -129,6 +129,28 @@ falsos positivos y negativos, diferencias de severidad y controles específicos
 para falsos `severo` de desborde y rotura. Las métricas concluyentes excluyen
 las decisiones humanas marcadas como dudosas.
 
+Para caracterizar los grupos con una muestra más amplia, congelar 1.000 fotos
+aleatorias estratificadas, sin reutilizar el piloto ni la validación:
+
+```bash
+python3 -m basura_vision.cli bedrock-stratified-sample \
+  --run-id reference_3000_s3_restore \
+  --sample-plan-id cluster_characterization_1000_seed_20261120 \
+  --label-run-id nova_lite__bedrock_labels_v1__cluster1000 \
+  --exclude-label-run-id nova_lite__bedrock_labels_v1__pilot40 \
+  --exclude-label-run-id nova_lite__bedrock_labels_v1__validation34 \
+  --total 1000 \
+  --minimum-per-group 20 \
+  --maximum-per-group 100 \
+  --region us-east-1 \
+  --seed 20261120
+```
+
+Las cuotas mantienen la proporcionalidad mediante redistribución iterativa al
+aplicar el mínimo y el máximo. La selección es aleatoria dentro de cada grupo,
+usa eventos únicos y deja el label run en `prepared`, sin aprobación ni llamadas
+a Bedrock.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:

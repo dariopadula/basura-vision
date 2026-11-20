@@ -30,6 +30,7 @@ def main(argv=None):
     training = commands.add_parser("train"); training.add_argument("--dataset", type=Path, required=True); training.add_argument("--initial-weight", type=Path, required=True); training.add_argument("--output", type=Path, required=True); training.add_argument("--epochs", type=int, default=50)
     bedrock = commands.add_parser("bedrock-one"); bedrock.add_argument("--run-id", required=True); bedrock.add_argument("--photo-id", required=True); bedrock.add_argument("--model-id"); bedrock.add_argument("--region")
     bedrock_samples = commands.add_parser("bedrock-samples"); bedrock_samples.add_argument("--run-id", required=True); bedrock_samples.add_argument("--sample-plan-id", required=True); bedrock_samples.add_argument("--pilot-label-run-id", required=True); bedrock_samples.add_argument("--validation-label-run-id", required=True); bedrock_samples.add_argument("--model-id"); bedrock_samples.add_argument("--region"); bedrock_samples.add_argument("--seed", type=int, default=20261119)
+    bedrock_stratified = commands.add_parser("bedrock-stratified-sample"); bedrock_stratified.add_argument("--run-id", required=True); bedrock_stratified.add_argument("--sample-plan-id", required=True); bedrock_stratified.add_argument("--label-run-id", required=True); bedrock_stratified.add_argument("--exclude-label-run-id", action="append", default=[]); bedrock_stratified.add_argument("--total", type=positive_integer, default=1000); bedrock_stratified.add_argument("--minimum-per-group", type=positive_integer, default=20); bedrock_stratified.add_argument("--maximum-per-group", type=positive_integer, default=100); bedrock_stratified.add_argument("--seed", type=int, default=20261120); bedrock_stratified.add_argument("--model-id"); bedrock_stratified.add_argument("--region")
     bedrock_review = commands.add_parser("bedrock-review"); bedrock_review.add_argument("--run-id", required=True); bedrock_review.add_argument("--label-run-id", required=True); bedrock_review.add_argument("--no-browser", action="store_true"); bedrock_review.add_argument("--destination"); bedrock_review.add_argument("--no-upload", action="store_true")
     bedrock_review_report = commands.add_parser("bedrock-review-report"); bedrock_review_report.add_argument("--run-id", required=True); bedrock_review_report.add_argument("--label-run-id", required=True)
     bedrock_prepare = commands.add_parser("bedrock-prepare"); bedrock_prepare.add_argument("--run-id", required=True); bedrock_prepare.add_argument("--label-run-id", required=True); bedrock_prepare.add_argument("--model-id"); bedrock_prepare.add_argument("--region"); bedrock_prepare.add_argument("--max-cost-usd"); bedrock_prepare.add_argument("--approve-execution", action="store_true")
@@ -121,6 +122,27 @@ def main(argv=None):
             seed=args.seed,
         )
         print(plan_dir)
+    elif args.command == "bedrock-stratified-sample":
+        from .bedrock_sampling import prepare_stratified_sample
+        region = (
+            args.region
+            or settings.bedrock_region
+            or os.environ.get("AWS_DEFAULT_REGION")
+            or os.environ.get("AWS_REGION")
+        )
+        print(prepare_stratified_sample(
+            settings,
+            args.run_id,
+            args.sample_plan_id,
+            args.label_run_id,
+            args.model_id or settings.bedrock_model_id,
+            region or "",
+            args.exclude_label_run_id,
+            total=args.total,
+            minimum_per_group=args.minimum_per_group,
+            maximum_per_group=args.maximum_per_group,
+            seed=args.seed,
+        ))
     elif args.command == "bedrock-review":
         from .bedrock_review import serve_blind_review
         storage = photo_storage(settings)

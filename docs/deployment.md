@@ -152,3 +152,24 @@ Este paso es completamente local y genera un resumen Markdown, un JSON
 auditable y un CSV con una fila por foto y categoría. No modifica revisiones ni
 resultados.
 
+### Muestra estratificada para caracterizar los grupos
+
+```bash
+python3 -m basura_vision.cli bedrock-stratified-sample \
+  --run-id reference_3000_s3_restore \
+  --sample-plan-id cluster_characterization_1000_seed_20261120 \
+  --label-run-id nova_lite__bedrock_labels_v1__cluster1000 \
+  --exclude-label-run-id nova_lite__bedrock_labels_v1__pilot40 \
+  --exclude-label-run-id nova_lite__bedrock_labels_v1__validation34 \
+  --total 1000 \
+  --minimum-per-group 20 \
+  --maximum-per-group 100 \
+  --region us-east-1 \
+  --seed 20261120
+```
+
+Este comando no abre S3 ni Bedrock. Congela la selección y sus cuotas en
+`bedrock/sample_plans/cluster_characterization_1000_seed_20261120/`, prepara el
+label run y excluye por `event_id` las 40 fotos del piloto y las 34 reservadas.
+Auditar `sample_plan.json` antes de crear un control de ejecución.
+
