@@ -56,8 +56,8 @@ class BedrockReviewReportTests(unittest.TestCase):
             second["contenedor_desbordado"] = {"presente": True, "severidad": "severo"}
             write_jsonl(label_dir / "selection.jsonl", selection)
             write_jsonl(label_dir / "results.jsonl", [
-                {"photo_id": "photo_1", "labels": first},
-                {"photo_id": "photo_2", "labels": second},
+                {"id": "photo_1", "path": "photos/photo_1.jpg", "labels": first},
+                {"id": "photo_2", "path": "photos/photo_2.jpg", "labels": second},
             ])
             save_blind_reviews(label_dir / "blind_reviews.json", {
                 "photo_1": review("photo_1", {

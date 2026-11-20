@@ -111,15 +111,12 @@ def build_review_report(
             raise FileNotFoundError(f"Falta {path}")
 
     selection = read_jsonl(selection_path)
-    results = read_jsonl(
-        results_path,
-        required_fields={"photo_id", "labels"},
-    )
+    results = read_jsonl(results_path)
     reviews = load_blind_reviews(reviews_path)
     selected = {row["id"]: row for row in selection}
-    predicted = {str(row["photo_id"]): row for row in results}
+    predicted = {row["id"]: row for row in results}
     if len(predicted) != len(results):
-        raise ValueError("results.jsonl contiene photo_id duplicados")
+        raise ValueError("results.jsonl contiene IDs duplicados")
     expected_ids = set(selected)
     if set(predicted) != expected_ids:
         raise ValueError("Los resultados no cubren exactamente la selección")
