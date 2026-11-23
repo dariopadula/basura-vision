@@ -5,7 +5,12 @@ import unittest
 from pathlib import Path
 
 from basura_vision.bedrock import CATEGORIES
-from basura_vision.bedrock_summary import build_summary, list_label_runs, write_summary
+from basura_vision.bedrock_summary import (
+    build_photo_labels,
+    build_summary,
+    list_label_runs,
+    write_summary,
+)
 from basura_vision.manifests import write_jsonl
 
 
@@ -102,6 +107,18 @@ class BedrockSummaryTests(unittest.TestCase):
                 "label_run_id": "labels1000", "status": "in_progress",
                 "selected": 4, "completed": 3, "model_id": "amazon.nova-lite-v1:0",
             }])
+
+    def test_returns_compact_photo_labels_for_viewer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir, _ = self._build(Path(directory))
+            details = build_photo_labels(run_dir, "labels1000")
+
+            self.assertEqual(len(details["selected"]), 4)
+            self.assertEqual(len(details["results"]), 3)
+            self.assertEqual(details["selected"][-1], {"id": "d", "cluster": "sin_residuos"})
+            result = next(row for row in details["results"] if row["id"] == "a")
+            self.assertEqual(result["cluster"], "1")
+            self.assertEqual(result["labels"]["basura_fuera"]["severidad"], "leve")
 
     def test_rejects_result_outside_frozen_selection(self):
         with tempfile.TemporaryDirectory() as directory:

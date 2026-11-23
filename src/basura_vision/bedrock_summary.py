@@ -315,3 +315,36 @@ def list_label_runs(run_dir: Path) -> list[dict]:
             "model_id": metadata.get("model_id"),
         })
     return runs
+
+
+def build_photo_labels(run_dir: Path, label_run_id: str) -> dict:
+    """Return the frozen sample and compact valid labels for the photo viewer."""
+    if Path(label_run_id).name != label_run_id:
+        raise ValueError("label_run_id debe ser un nombre simple")
+    label_dir = run_dir.resolve() / "bedrock" / label_run_id
+    if not label_dir.is_dir():
+        raise ValueError(f"Corrida Bedrock inexistente: {label_run_id}")
+    selection = _read_jsonl(label_dir / "selection.jsonl")
+    if not selection:
+        raise ValueError(f"Selección inexistente o vacía: {label_run_id}")
+    selected_by_id = _by_id(selection, "selection.jsonl")
+    results = _read_jsonl(label_dir / "results.jsonl")
+    result_by_id = _by_id(results, "results.jsonl") if results else {}
+    unknown = sorted(set(result_by_id) - set(selected_by_id))
+    if unknown:
+        raise ValueError(f"Hay resultados ajenos a la selección: {unknown[:3]}")
+    compact_results = []
+    for photo_id, result in result_by_id.items():
+        compact_results.append({
+            "id": photo_id,
+            "cluster": str(selected_by_id[photo_id]["cluster"]),
+            "labels": _validate_labels(result),
+        })
+    return {
+        "label_run_id": label_run_id,
+        "selected": [
+            {"id": row["id"], "cluster": str(row["cluster"])}
+            for row in selection
+        ],
+        "results": compact_results,
+    }

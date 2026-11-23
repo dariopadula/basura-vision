@@ -66,6 +66,13 @@ Likert y las coocurrencias. Si el label run no está en la copia local, debe
 restaurarse primero desde su prefijo S3; abrir el visor nunca vuelve a invocar
 Bedrock.
 
+El enlace **Ver sus fotos** conserva el label run, limita el visor a la muestra
+Bedrock del grupo y trata `sin_residuos` y `sin_contenedor` como estados. En la
+galería, el indicador `Bedrock · N situaciones` abre un diálogo con etiquetas y
+severidades; las ausencias permanecen plegadas para no recargar las tarjetas.
+Los filtros superiores permiten alternar entre toda la corrida, la muestra
+seleccionada, las respuestas válidas y los casos sin etiqueta.
+
 Para generar además las salidas JSON y CSV reutilizables:
 
 ```bash

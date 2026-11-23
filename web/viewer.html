@@ -1,8 +1,98 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Basura Visión · resultados</title><style>
-:root{font:15px system-ui;color:#172334;background:#f3f5f7}*{box-sizing:border-box}body{margin:0}header{position:sticky;top:0;z-index:2;background:white;padding:14px 22px;border-bottom:1px solid #ccd3da}h1{font-size:21px;margin:0 0 9px}.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}select,button{font:inherit;padding:7px 10px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px;padding:18px}.card{background:white;border:1px solid #d8dde2;border-radius:8px;padding:10px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pair figure{margin:0}.pair img{width:100%;height:240px;object-fit:contain;background:#18202a}.pair figcaption{text-align:center;font-size:12px}.meta{overflow-wrap:anywhere}.marked{outline:4px solid #f2b705}.empty{display:grid;place-items:center;height:240px;background:#e8ebee;color:#667}.bad{color:#9d271b}@media(max-width:520px){.grid{grid-template-columns:1fr;padding:8px}.pair img{height:180px}}
-</style></head><body><header><h1>Resultados de detección y agrupación</h1><div class="controls"><a href="/summary">Resumen de grupos</a><label>Estado <select id="status"><option value="">Todos</option><option value="agrupable">Agrupables</option><option value="sin_residuos">Sin residuos</option><option value="sin_contenedor">Sin contenedor</option><option value="error_entrada">Error de entrada</option></select></label><label>Grupo <select id="cluster"><option value="">Todos</option></select></label><button id="clear">Quitar marcas</button><button id="export">Exportar selección JSONL</button><span id="count"></span></div></header><main class="grid" id="grid"></main><script>
-const $=x=>document.getElementById(x);let items=[],marked=new Set();const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function render(){let status=$('status').value,cluster=$('cluster').value,shown=items.filter(x=>(!status||x.status===status)&&(!cluster||String(x.cluster)===cluster));$('count').textContent=`${shown.length} visibles · ${marked.size} marcadas`;$('grid').innerHTML=shown.map(x=>`<article class="card ${marked.has(x.id)?'marked':''}" data-id="${esc(x.id)}"><label><input class="mark" type="checkbox" ${marked.has(x.id)?'checked':''}> Marcar</label><div class="pair"><figure><img loading="lazy" src="/original?id=${encodeURIComponent(x.id)}"><figcaption>Original</figcaption></figure><figure>${x.crop_path?`<img loading="lazy" src="/crop?id=${encodeURIComponent(x.id)}">`:'<div class="empty">Sin recorte</div>'}<figcaption>Recorte mínimo</figcaption></figure></div><p class="meta"><b>${esc(x.id)}</b><br>Estado: ${esc(x.status)} · Grupo: ${esc(x.cluster??'—')} · Ratio: ${x.ratio==null?'—':x.ratio.toFixed(6)}<br><small>${esc(x.path)}</small>${x.reference_status&&String(x.reference_status)!==String(x.cluster??x.status)?`<br><span class="bad">Referencia: ${esc(x.reference_status)}</span>`:''}</p></article>`).join('');document.querySelectorAll('.mark').forEach(e=>e.onchange=()=>{let id=e.closest('.card').dataset.id;e.checked?marked.add(id):marked.delete(id);render()})}
-fetch('/api/items').then(r=>r.json()).then(x=>{items=x;let clusters=[...new Set(x.map(v=>v.cluster).filter(v=>v!=null))].sort((a,b)=>Number(a)-Number(b));$('cluster').innerHTML+=[...clusters].map(v=>`<option>${esc(v)}</option>`).join('');let requested=new URLSearchParams(location.search).get('cluster');if(requested&&clusters.map(String).includes(requested))$('cluster').value=requested;render()});$('status').onchange=$('cluster').onchange=render;$('clear').onclick=()=>{marked.clear();render()};$('export').onclick=()=>{let text=items.filter(x=>marked.has(x.id)).map(x=>JSON.stringify({id:x.id,path:x.path,event_id:x.event_id,cluster:x.cluster,status:x.status,ratio:x.ratio,crop_path:x.crop_path})).join('\n')+'\n';let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/x-ndjson'}));a.download='seleccion.jsonl';a.click();URL.revokeObjectURL(a.href)};
-</script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Basura Visión · resultados</title>
+  <style>
+    :root{font:15px system-ui;color:#172334;background:#f3f5f7;--leve:#f4d35e;--medio:#ee964b;--severo:#d1495b}
+    *{box-sizing:border-box}body{margin:0}header{position:sticky;top:0;z-index:2;background:#fff;padding:14px 22px;border-bottom:1px solid #ccd3da}h1{font-size:21px;margin:0 0 9px}.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}select,button{font:inherit;padding:7px 10px}a{color:#155c99}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px;padding:18px}.card{background:#fff;border:1px solid #d8dde2;border-radius:8px;padding:10px}.card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:32px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pair figure{margin:0}.pair img{width:100%;height:240px;object-fit:contain;background:#18202a}.pair figcaption{text-align:center;font-size:12px}.meta{overflow-wrap:anywhere}.marked{outline:4px solid #f2b705}.empty{display:grid;place-items:center;height:240px;background:#e8ebee;color:#667}.bad{color:#9d271b}.bedrock-chip{border:0;border-radius:999px;background:#e8f1fa;color:#174f7d;padding:5px 9px;font-size:12px;cursor:pointer}.bedrock-chip.pending{background:#f0f1f2;color:#59636e}dialog{border:0;border-radius:10px;box-shadow:0 15px 45px #0005;max-width:560px;width:calc(100% - 28px);padding:0}dialog::backdrop{background:#17233499}.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;border-bottom:1px solid #d8dde2}.dialog-head h2{font-size:18px;margin:0}.dialog-body{padding:16px}.dialog-close{border:0;background:transparent;font-size:22px}.label-list{display:grid;gap:8px;margin:12px 0}.label-row{display:flex;justify-content:space-between;gap:12px;padding:9px 11px;border-radius:6px;background:#f1f4f6}.severity{font-weight:600}.severity.leve{color:#7b6500}.severity.medio{color:#a94e08}.severity.severo{color:#a31f35}.muted{color:#637083}details{margin-top:14px}details li{margin:5px 0}@media(max-width:520px){.grid{grid-template-columns:1fr;padding:8px}.pair img{height:180px}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Resultados de detección y agrupación</h1>
+    <div class="controls">
+      <a id="summary-link" href="/summary">Resumen de grupos</a>
+      <label>Estado <select id="status"><option value="">Todos</option><option value="agrupable">Agrupables</option><option value="sin_residuos">Sin residuos</option><option value="sin_contenedor">Sin contenedor</option><option value="error_entrada">Error de entrada</option></select></label>
+      <label>Grupo <select id="cluster"><option value="">Todos</option></select></label>
+      <label>Corrida Bedrock <select id="label-run"><option value="">Sin seleccionar</option></select></label>
+      <label>Bedrock <select id="bedrock-filter"><option value="">Todas</option><option value="selected">Muestra seleccionada</option><option value="labeled">Etiquetadas</option><option value="unlabeled">Sin etiqueta</option></select></label>
+      <button id="clear">Quitar marcas</button>
+      <button id="export">Exportar selección JSONL</button>
+      <span id="count"></span>
+    </div>
+  </header>
+  <main class="grid" id="grid"></main>
+  <dialog id="bedrock-dialog">
+    <div class="dialog-head"><h2 id="dialog-title">Etiquetas de Bedrock</h2><button class="dialog-close" id="dialog-close" aria-label="Cerrar">×</button></div>
+    <div class="dialog-body" id="dialog-body"></div>
+  </dialog>
+  <script>
+    const $=id=>document.getElementById(id);
+    const categoryNames={basura_fuera:'Basura fuera',residuos_esparcidos:'Residuos esparcidos',poda:'Poda',contenedor_desbordado:'Contenedor desbordado',contenedor_roto:'Contenedor roto',voluminoso:'Voluminoso'};
+    const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    let items=[],marked=new Set(),selectedIds=new Set(),bedrockResults=new Map();
 
+    function bedrockBadge(item){
+      if(bedrockResults.has(item.id)){
+        let labels=bedrockResults.get(item.id).labels;
+        let count=Object.values(labels).filter(value=>value.presente).length;
+        return `<button class="bedrock-chip" data-bedrock-id="${esc(item.id)}">Bedrock · ${count?`${count} ${count===1?'situación':'situaciones'}`:'ninguna situación'}</button>`;
+      }
+      if(selectedIds.has(item.id))return `<button class="bedrock-chip pending" data-bedrock-id="${esc(item.id)}">Bedrock · sin resultado válido</button>`;
+      return '';
+    }
+
+    function render(){
+      let status=$('status').value,cluster=$('cluster').value,bedrock=$('bedrock-filter').value;
+      let shown=items.filter(item=>(!status||item.status===status)&&(!cluster||String(item.cluster)===cluster)&&(!bedrock||(bedrock==='selected'&&selectedIds.has(item.id))||(bedrock==='labeled'&&bedrockResults.has(item.id))||(bedrock==='unlabeled'&&!bedrockResults.has(item.id))));
+      $('count').textContent=`${shown.length} visibles · ${marked.size} marcadas`;
+      $('grid').innerHTML=shown.map(item=>`<article class="card ${marked.has(item.id)?'marked':''}" data-id="${esc(item.id)}"><div class="card-top"><label><input class="mark" type="checkbox" ${marked.has(item.id)?'checked':''}> Marcar</label>${bedrockBadge(item)}</div><div class="pair"><figure><img loading="lazy" src="/original?id=${encodeURIComponent(item.id)}"><figcaption>Original</figcaption></figure><figure>${item.crop_path?`<img loading="lazy" src="/crop?id=${encodeURIComponent(item.id)}">`:'<div class="empty">Sin recorte</div>'}<figcaption>Recorte mínimo</figcaption></figure></div><p class="meta"><b>${esc(item.id)}</b><br>Estado: ${esc(item.status)} · Grupo: ${esc(item.cluster??'—')} · Ratio: ${item.ratio==null?'—':item.ratio.toFixed(6)}<br><small>${esc(item.path)}</small>${item.reference_status&&String(item.reference_status)!==String(item.cluster??item.status)?`<br><span class="bad">Referencia: ${esc(item.reference_status)}</span>`:''}</p></article>`).join('');
+      document.querySelectorAll('.mark').forEach(input=>input.onchange=()=>{let id=input.closest('.card').dataset.id;input.checked?marked.add(id):marked.delete(id);render()});
+      document.querySelectorAll('[data-bedrock-id]').forEach(button=>button.onclick=()=>showBedrock(button.dataset.bedrockId));
+    }
+
+    function showBedrock(photoId){
+      let result=bedrockResults.get(photoId);
+      $('dialog-title').textContent=`Bedrock · ${photoId}`;
+      if(!result){$('dialog-body').innerHTML='<p>No existe una respuesta válida para esta foto.</p>';return $('bedrock-dialog').showModal()}
+      let present=Object.entries(result.labels).filter(([,value])=>value.presente);
+      let absent=Object.entries(result.labels).filter(([,value])=>!value.presente);
+      let html=present.length?`<p>Situaciones presentes según Bedrock:</p><div class="label-list">${present.map(([category,value])=>`<div class="label-row"><span>${esc(categoryNames[category]||category)}</span><span class="severity ${esc(value.severidad)}">${esc(value.severidad)}</span></div>`).join('')}</div>`:'<p><b>Bedrock no indicó ninguna situación presente.</b></p>';
+      html+=`<details><summary>Situaciones ausentes (${absent.length})</summary><ul>${absent.map(([category])=>`<li>${esc(categoryNames[category]||category)}</li>`).join('')}</ul></details>`;
+      $('dialog-body').innerHTML=html;$('bedrock-dialog').showModal();
+    }
+
+    async function loadBedrock(labelRunId){
+      selectedIds=new Set();bedrockResults=new Map();
+      if(!labelRunId){$('bedrock-filter').value='';$('bedrock-filter').disabled=true;render();return}
+      let response=await fetch(`/api/bedrock-photo-labels?label_run_id=${encodeURIComponent(labelRunId)}`);
+      if(!response.ok)throw new Error(await response.text());
+      let payload=await response.json();selectedIds=new Set(payload.selected.map(row=>row.id));bedrockResults=new Map(payload.results.map(row=>[row.id,row]));$('bedrock-filter').disabled=false;$('summary-link').href=`/summary?label_run_id=${encodeURIComponent(labelRunId)}`;render();
+    }
+
+    async function start(){
+      let params=new URLSearchParams(location.search);
+      let [photoResponse,runsResponse]=await Promise.all([fetch('/api/items'),fetch('/api/bedrock-runs')]);
+      items=await photoResponse.json();let runs=await runsResponse.json();
+      let clusters=[...new Set(items.map(value=>value.cluster).filter(value=>value!=null))].sort((a,b)=>Number(a)-Number(b));
+      $('cluster').innerHTML+=[...clusters].map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('');
+      $('label-run').innerHTML='<option value="">Sin seleccionar</option>'+runs.map(run=>`<option value="${esc(run.label_run_id)}">${esc(run.label_run_id)} · ${esc(run.completed??'?')}/${esc(run.selected??'?')}</option>`).join('');
+      let requestedRun=params.get('label_run_id');if(requestedRun&&runs.some(run=>run.label_run_id===requestedRun))$('label-run').value=requestedRun;
+      let requestedGroup=params.get('group')||params.get('cluster');
+      if(requestedGroup){if(['sin_residuos','sin_contenedor'].includes(requestedGroup))$('status').value=requestedGroup;else if(clusters.map(String).includes(requestedGroup))$('cluster').value=requestedGroup}
+      let requestedBedrock=params.get('bedrock');if(['selected','labeled','unlabeled'].includes(requestedBedrock))$('bedrock-filter').value=requestedBedrock;
+      await loadBedrock($('label-run').value);render();
+    }
+
+    $('status').onchange=$('cluster').onchange=$('bedrock-filter').onchange=render;
+    $('label-run').onchange=()=>loadBedrock($('label-run').value).catch(error=>alert(error.message));
+    $('clear').onclick=()=>{marked.clear();render()};
+    $('export').onclick=()=>{let text=items.filter(item=>marked.has(item.id)).map(item=>JSON.stringify({id:item.id,path:item.path,event_id:item.event_id,cluster:item.cluster,status:item.status,ratio:item.ratio,crop_path:item.crop_path})).join('\n')+'\n';let link=document.createElement('a');link.href=URL.createObjectURL(new Blob([text],{type:'application/x-ndjson'}));link.download='seleccion.jsonl';link.click();URL.revokeObjectURL(link.href)};
+    $('dialog-close').onclick=()=>$('bedrock-dialog').close();
+    $('bedrock-dialog').onclick=event=>{if(event.target===$('bedrock-dialog'))$('bedrock-dialog').close()};
+    start().catch(error=>{$('count').textContent=error.message;$('count').className='bad'});
+  </script>
+</body>
+</html>

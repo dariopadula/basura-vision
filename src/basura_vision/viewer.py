@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 from PIL import Image, ImageOps
 
 from .config import ROOT, Settings
-from .bedrock_summary import build_summary, list_label_runs
+from .bedrock_summary import build_photo_labels, build_summary, list_label_runs
 from .manifests import read_jsonl
 from .storage import Storage
 
@@ -71,6 +71,12 @@ def serve_viewer(settings: Settings, storage: Storage, run_id: str, open_browser
                     label_run_id = parse_qs(request.query).get("label_run_id", [""])[0]
                     return self.send_content(
                         json.dumps(build_summary(run_dir, label_run_id), ensure_ascii=False).encode(),
+                        "application/json",
+                    )
+                if request.path == "/api/bedrock-photo-labels":
+                    label_run_id = parse_qs(request.query).get("label_run_id", [""])[0]
+                    return self.send_content(
+                        json.dumps(build_photo_labels(run_dir, label_run_id), ensure_ascii=False).encode(),
                         "application/json",
                     )
                 if request.path in {"/original", "/crop"}:

@@ -171,6 +171,14 @@ Likert divergente —ausencia a la izquierda y severidades a la derecha— y una
 matriz de coocurrencias. Los gráficos se identifican explícitamente como una
 caracterización exploratoria según Bedrock.
 
+Desde cada grupo, **Ver sus fotos** abre solamente los IDs de la muestra
+Bedrock correspondiente. Los grupos `sin_residuos` y `sin_contenedor` se
+resuelven por estado, no por número de clúster. En el visor se puede elegir la
+corrida de etiquetas y filtrar todas las fotos, la muestra seleccionada, las
+respuestas válidas o las fotos sin etiqueta. Cada tarjeta conserva un indicador
+compacto; al pulsarlo se abre el detalle de situaciones presentes y severidades,
+con las ausentes plegadas.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:
