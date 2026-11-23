@@ -151,6 +151,26 @@ aplicar el mínimo y el máximo. La selección es aleatoria dentro de cada grupo
 usa eventos únicos y deja el label run en `prepared`, sin aprobación ni llamadas
 a Bedrock.
 
+Para congelar la caracterización después de ejecutar el lote:
+
+```bash
+python3 -m basura_vision.cli bedrock-summary \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__cluster1000
+```
+
+El comando no abre S3 ni invoca Bedrock. Genera `summary/summary.json`,
+`summary/groups.csv` y `summary/cooccurrences.csv` dentro del label run. Todos
+los porcentajes de ausencia y severidad usan como denominador las respuestas
+válidas del grupo; la cobertura se informa por separado.
+
+El visor de resultados descubre los label runs disponibles y ofrece
+**Resumen de grupos** dentro del mismo servidor. La vista incluye un mapa de
+calor de presencia para los 15 clústeres y los grupos especiales, un gráfico
+Likert divergente —ausencia a la izquierda y severidades a la derecha— y una
+matriz de coocurrencias. Los gráficos se identifican explícitamente como una
+caracterización exploratoria según Bedrock.
+
 ## Reentrenamiento
 
 Las fotos no revisadas no aparecen en anotaciones. Una foto guardada sin cajas lleva `reviewed=true` y `negative_confirmed=true`. Para preparar una versión con particiones por intervención e independiente de prueba:

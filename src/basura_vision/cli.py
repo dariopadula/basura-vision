@@ -33,6 +33,7 @@ def main(argv=None):
     bedrock_stratified = commands.add_parser("bedrock-stratified-sample"); bedrock_stratified.add_argument("--run-id", required=True); bedrock_stratified.add_argument("--sample-plan-id", required=True); bedrock_stratified.add_argument("--label-run-id", required=True); bedrock_stratified.add_argument("--exclude-label-run-id", action="append", default=[]); bedrock_stratified.add_argument("--total", type=positive_integer, default=1000); bedrock_stratified.add_argument("--minimum-per-group", type=positive_integer, default=20); bedrock_stratified.add_argument("--maximum-per-group", type=positive_integer, default=100); bedrock_stratified.add_argument("--seed", type=int, default=20261120); bedrock_stratified.add_argument("--model-id"); bedrock_stratified.add_argument("--region")
     bedrock_review = commands.add_parser("bedrock-review"); bedrock_review.add_argument("--run-id", required=True); bedrock_review.add_argument("--label-run-id", required=True); bedrock_review.add_argument("--no-browser", action="store_true"); bedrock_review.add_argument("--destination"); bedrock_review.add_argument("--no-upload", action="store_true")
     bedrock_review_report = commands.add_parser("bedrock-review-report"); bedrock_review_report.add_argument("--run-id", required=True); bedrock_review_report.add_argument("--label-run-id", required=True)
+    bedrock_summary = commands.add_parser("bedrock-summary"); bedrock_summary.add_argument("--run-id", required=True); bedrock_summary.add_argument("--label-run-id", required=True)
     bedrock_prepare = commands.add_parser("bedrock-prepare"); bedrock_prepare.add_argument("--run-id", required=True); bedrock_prepare.add_argument("--label-run-id", required=True); bedrock_prepare.add_argument("--model-id"); bedrock_prepare.add_argument("--region"); bedrock_prepare.add_argument("--max-cost-usd"); bedrock_prepare.add_argument("--approve-execution", action="store_true")
     batch = commands.add_parser("bedrock-batch"); batch.add_argument("--run-id", required=True); batch.add_argument("--label-run-id", required=True); batch.add_argument("--model-id"); batch.add_argument("--region"); batch.add_argument("--checkpoint-every", type=positive_integer, default=5); batch.add_argument("--max-attempts", type=positive_integer, default=3); batch.add_argument("--destination"); batch.add_argument("--no-upload", action="store_true"); batch.add_argument("--execute-approved", action="store_true")
     bedrock_restore = commands.add_parser("bedrock-restore"); bedrock_restore.add_argument("--run-id", required=True); bedrock_restore.add_argument("--label-run-id", required=True); bedrock_restore.add_argument("--source", required=True)
@@ -160,6 +161,9 @@ def main(argv=None):
     elif args.command == "bedrock-review-report":
         from .bedrock_review_report import build_review_report
         print(build_review_report(settings, args.run_id, args.label_run_id))
+    elif args.command == "bedrock-summary":
+        from .bedrock_summary import write_summary
+        print(write_summary(settings.runs_root / args.run_id, args.label_run_id))
     elif args.command == "bedrock-prepare":
         from .bedrock import prepare_label_run
         region = (

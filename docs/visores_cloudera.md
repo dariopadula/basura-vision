@@ -58,6 +58,22 @@ printf 'https://read-only-%s.%s\n' \
 
 Las marcas del visor viven en el navegador. Exportar la selección JSONL antes de recargar o cerrar la página.
 
+Cuando la corrida contiene uno o más directorios
+`bedrock/<label-run-id>/selection.jsonl`, el enlace **Resumen de grupos** aparece
+en el mismo visor. No usa otro puerto ni requiere otra Application. La página
+permite elegir el label run y el grupo, y muestra el mapa de calor, el detalle
+Likert y las coocurrencias. Si el label run no está en la copia local, debe
+restaurarse primero desde su prefijo S3; abrir el visor nunca vuelve a invocar
+Bedrock.
+
+Para generar además las salidas JSON y CSV reutilizables:
+
+```bash
+python3 -m basura_vision.cli bedrock-summary \
+  --run-id reference_3000_s3_restore \
+  --label-run-id nova_lite__bedrock_labels_v1__cluster1000
+```
+
 Detener el visor:
 
 ```bash
@@ -175,5 +191,5 @@ La Application lee estas opciones junto con la conexión, bucket, prefijo y obje
 
 El primer inicio descarga los artefactos guardados; los siguientes reutilizan la copia local si está completa. El visor no ejecuta YOLO.
 
-Validación realizada el 2026-11-16: la Application restauró `runs/reference_30_cloudera` desde S3 como `reference_30_application`, inició correctamente y mostró las 30 fotos con originales, recortes, filtros y exportación.
+Validación realizada el 2026-11-16: la Application restauró `runs/reference_30_cloudera` desde S3 como `reference_30_application`, inició correctamente y mostró las 30 fotos con originales, recortes, filtros y exportación. El 2026-11-23 se comprobó localmente, en el mismo servidor, la navegación del resumen, el mapa de calor, el Likert, las coocurrencias y el filtro de fotos con una corrida sintética. Falta validarlo en la Application con las 1.000 respuestas reales.
 
